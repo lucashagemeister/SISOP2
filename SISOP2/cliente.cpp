@@ -1,8 +1,19 @@
-#include <pthread.h>
-#include "comandosCliente.h"
-#define TRUE 1
+#include "Cliente.h"
+#include <string.h>
+#include <iostream>
+using namespace std;
 
-void do_threadSender(void *arg) {
+Cliente::Cliente(){
+
+}
+
+Cliente::Cliente(char *clientName, char *listOfFollowers, int numberOfAccess){
+	strcpy(this->clientName, clientName);
+	strcpy(this->listOfFollowers, listOfFollowers);
+	this->numberOfAccess = numberOfAccess;
+}
+
+void Cliente::do_threadSender(void* arg){
     pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
     while (TRUE) {
@@ -14,36 +25,52 @@ void do_threadSender(void *arg) {
     }
 }
 
-void do_threadReceiver(void* arg) {
+void Cliente::do_threadReceiver(void* arg){
+
     pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
     notification apiTransmission;
+
     while (TRUE) {
         pthread_mutex_lock(&mutex);
         //INÍCIO DA SEÇÃO CRÍTICA
-        //apiTransmission = classColombelli.getNewNotification();
+        apiTransmission = classColombelli.getNewNotification();
         if (apiTransmission != NULL) { //ver direitinho como comparar.
             cout << "Tweet from" << apiTransmission.author << "at" << apiTransmission.timestamp << ":" << endl;
             cout << "%s", apiTransmission._string << endl;
             apiTransmission = NULL;
         }
-
-
         //FIM DA SEÇÃO CRÍTICA
         pthread_mutex_unlock(&mutex);
     }
 }
 
-int main() {
-    pthread_t threadSender;
-    pthread_t threadReceiver;
+/*
+void* clientCommand(void* arg) {
+	char* clientText;
+	fgets(clientText,1000,stdin); //1000 eu botei só porque precisar ter o parâmetro tamanho.
 
-    int n = 10; //ver o que fazer com isso depois
+	std::string input = clientText;
+	std::string cmd = input.substr(0, input.find(" "));
 
-    pthread_create(&threadSender, NULL, do_threadSender, &n);
-    pthread_create(&threadReceiver, NULL, do_threadReceiver, &n);
+	if (cmd.compare("CONNECT")) {
 
-    pthread_join(threadSender, NULL);
-    pthread_join(threadReceiver, NULL);
+	}
+	else if(cmd.compare("SEND")) {
 
-    return 0;
+	}
+	else if (cmd.compare("FOLLOW")) {
+
+	}
+	else if (cmd.compare("UNFOLLOW")) {
+
+	}
+	else if (cmd.compare("EXIT")) {
+
+	}
+	else {
+		cout << "Unkown command! Please try again." << endl;
+	}
+	
+return nullptr;
 }
+*/
