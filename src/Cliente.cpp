@@ -1,4 +1,4 @@
-#include "Cliente.h"
+#include "../include/Cliente.hpp"
 #include <string.h>
 #include <iostream>
 using namespace std;
@@ -18,9 +18,9 @@ void Cliente::do_threadSender(void* arg){
 
     while (TRUE) {
         pthread_mutex_lock(&mutex);
-        //INÍCIO DA SEÇÃO CRÍTICA
+        //INï¿½CIO DA SEï¿½ï¿½O CRï¿½TICA
 
-        //FIM DA SEÇÃO CRÍTICA
+        //FIM DA SEï¿½ï¿½O CRï¿½TICA
         pthread_mutex_unlock(&mutex);
     }
 }
@@ -32,14 +32,14 @@ void Cliente::do_threadReceiver(void* arg){
 
     while (TRUE) {
         pthread_mutex_lock(&mutex);
-        //INÍCIO DA SEÇÃO CRÍTICA
+        //INï¿½CIO DA SEï¿½ï¿½O CRï¿½TICA
         apiTransmission = classColombelli.getNewNotification();
         if (apiTransmission != NULL) { //ver direitinho como comparar.
             cout << "Tweet from" << apiTransmission.author << "at" << apiTransmission.timestamp << ":" << endl;
             cout << "%s", apiTransmission._string << endl;
             apiTransmission = NULL;
         }
-        //FIM DA SEÇÃO CRÍTICA
+        //FIM DA SEï¿½ï¿½O CRï¿½TICA
         pthread_mutex_unlock(&mutex);
     }
 }
@@ -47,7 +47,7 @@ void Cliente::do_threadReceiver(void* arg){
 /*
 void* clientCommand(void* arg) {
 	char* clientText;
-	fgets(clientText,1000,stdin); //1000 eu botei só porque precisar ter o parâmetro tamanho.
+	fgets(clientText,1000,stdin); //1000 eu botei sï¿½ porque precisar ter o parï¿½metro tamanho.
 
 	std::string input = clientText;
 	std::string cmd = input.substr(0, input.find(" "));

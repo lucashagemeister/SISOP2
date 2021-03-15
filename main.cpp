@@ -1,5 +1,5 @@
-#include "Cliente.h"
-#include <pthread.h>  //preciso instalar no Windows para fazer funcionar ou então rodar no Linux
+#include "include/Cliente.hpp"
+#include <pthread.h>  //preciso instalar no Windows para fazer funcionar ou entï¿½o rodar no Linux
 
 
 int main() {

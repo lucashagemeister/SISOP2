@@ -1,5 +1,5 @@
 #pragma once
-#include <stdint.h.>
+#include <stdint.h>
 #define MAX_MESSAGE_SIZE 128
 #define FALSE 0
 #define TRUE  1
