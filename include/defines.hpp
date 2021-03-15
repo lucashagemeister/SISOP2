@@ -8,6 +8,10 @@ enum{
 };
 #endif
 
-#ifndef PAYLOAD_LENGTH
-#define PAYLOAD_LENGTH 129      // 128 + '\0' character
+#ifndef MAX_PAYLOAD_LENGTH
+#define MAX_PAYLOAD_LENGTH 1024
+#endif
+
+#ifndef MAX_NOTIFICATION_LENGTH
+#define MAX_NOTIFICATION_LENGTH 129      // 128 + '\0' character
 #endif
