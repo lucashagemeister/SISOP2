@@ -51,3 +51,18 @@ uint16_t Packet::getTimestamp(){
 char* Packet::getPayload(){
     return this->payload;
 }
+
+
+void Packet::setType(uint16_t type){
+    this->type = type;
+}
+void Packet::setSeqn(uint16_t seqn){
+    this->seqn = seqn;
+}
+void Packet::setTimestamp(uint16_t timestamp){
+    this->timestamp = timestamp;
+}
+void Packet::setPayload(char* payload){
+    strcpy(this->payload, payload);
+    this->length = strlen(payload);
+}
