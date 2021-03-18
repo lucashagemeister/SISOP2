@@ -9,11 +9,11 @@ enum{
 #endif
 
 #ifndef MAX_PAYLOAD_LENGTH
-#define MAX_PAYLOAD_LENGTH 1024
+#define MAX_PAYLOAD_LENGTH 256
 #endif
 
 #ifndef MAX_NOTIFICATION_LENGTH
-#define MAX_NOTIFICATION_LENGTH 129      // 128 + '\0' character
+#define MAX_NOTIFICATION_LENGTH 128
 #endif
 
 #ifndef PKT_HEADER_BUFFER_LENGTH

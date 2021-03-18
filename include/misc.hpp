@@ -5,7 +5,7 @@
 #include <stdint.h>
 #include <string>
 
-uint16_t getU16Time();
-std::string getStringTimeFromU16(uint16_t d);
+uint16_t getU16Date();
+std::string getStringDateFromU16(uint16_t d);
 
 #endif

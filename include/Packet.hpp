@@ -15,24 +15,24 @@ class Packet {
         uint16_t type;      // See possible types in defines.hpp
         uint16_t seqn;      // Sequence number
         uint16_t length;    // Payload length
-        uint16_t timestamp;   // Data timestamp
+        time_t timestamp;   // Data timestamp
         char payload[MAX_PAYLOAD_LENGTH];      // Content of the packet
 
 	public:
-
+        Packet();
         Packet(uint16_t type, char const *payload);   // Get the timestamp when initializing the object
-        Packet(uint16_t type, uint16_t timestamp, char const *payload);   
-        Packet(uint16_t type, uint16_t seqn, uint16_t timestamp);
+        Packet(uint16_t type, time_t timestamp, char const *payload);   
+        Packet(uint16_t type, uint16_t seqn, time_t timestamp);
 
 		uint16_t getType();
 		uint16_t getSeqn();
 		uint16_t getLength();
-		uint16_t getTimestamp();
+		time_t getTimestamp();
         char* getPayload();
 
         void setType(uint16_t type);
         void setSeqn(uint16_t seqn);
-        void setTimestamp(uint16_t timestamp);
+        void setTimestamp(time_t timestamp);
         void setPayload(char* payload);
 };
 
