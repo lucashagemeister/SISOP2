@@ -1,6 +1,5 @@
-#include "include/Cliente.hpp"
+#include "./include/Cliente.hpp"
 #include <pthread.h>  
-
 
 int main() {
     pthread_t threadSender;

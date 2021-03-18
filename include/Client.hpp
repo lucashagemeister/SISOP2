@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <iostream>
+#include <pthread.h>
 
 #define MAX_MESSAGE_SIZE 128
 #define FALSE 0
@@ -10,7 +11,7 @@
 class Client{
 public:
     Client();
-    Client(char *clientName,char *listOfFollowers,int numberOfAccess);
+    Client(char *clientName, char *listOfFollowers, int numberOfAccess);
     char* clientName; 
     char* listOfFollowers;
     int numberOfAccess;

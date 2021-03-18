@@ -1,19 +1,36 @@
 #pragma once
 #include <stdint.h>
+#include <pthread.h>
 #include <list>
 #include <string>
 
-class Server{
-    public:
-        Server();
-        Server(host_address addr);
-        string ip; 
-        int port;
+typedef struct address {
+	string ipv4;
+	int port;
+
+} host_address;
+
+class Server
+{
+public:
+    Server();
+    Server(host_address addr);
+    string ip; 
+    int port;
     
-    private: 
+private: 
+    pthread_mutex_t start_session_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+    map<string, sem_t> user_sessions_semaphore;
+    map< string, list< pair<string, int> > > sessions; // {user, [<ip, port>]}
+    map< string, vector<string> > followers;
+
     bool try_to_start_session(string user, host_address address);
     void send(notification notification);
     void close_session(string user, host_address address);
+    void follow_user(string user, string user_to_follow);
+    bool user_exists(string user);
+    void create_notification(string user, string body);
 };
 
 typedef struct __notification {
@@ -24,10 +41,3 @@ typedef struct __notification {
     list<string> pending; //Quantidade de leitores pendentes
 
 } notification;
-
-
-typedef struct address {
-	string ipv4;
-	int port;
-
-} host_address;

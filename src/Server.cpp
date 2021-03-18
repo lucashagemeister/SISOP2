@@ -1,37 +1,37 @@
 #include "../include/Server.hpp"
 #include <iostream>
-#include <pthread.h>
 #include <semaphore.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <map>
+#include <vector>
 using namespace std;
 
 
-pthread_mutex_t start_session_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-map<string, sem_t> user_sessions_semaphore;
-map< string, list< pair<string, int> > > sessions; // {user, [<ip, port>]}
+Server::Server()
+{
 
-
-Server::Server(){
 }
 
-Server::Server(host_address address){
+Server::Server(host_address address)
+{
 	this->ip = address.ipv4;
 	this->port = address.port;
 }
 
-
-
-bool Server::try_to_start_session(string user, host_address address) {
+bool Server::try_to_start_session(string user, host_address address)
+{
     pthread_mutex_lock(&start_session_mutex); // Início SC
 
-    if(!user_exists(user)) {
+    if(!user_exists(user))
+    {
         sem_t num_sessions;
         sem_init(&num_sessions, 0, 2);
         user_sessions_semaphore.insert({user, num_sessions}); // Usuário é criado com a disponibilidade de 2 sessões
+        followers.insert(pair<string, vector<string>>(user, vector<string>()));
     } 
+    
     int session_started = sem_trywait(&(user_sessions_semaphore[user])); // tenta consumir um recurso de sessão
     if(session_started == 0) { 
         // add user and (ip, port) to sessions map if session started
@@ -43,9 +43,16 @@ bool Server::try_to_start_session(string user, host_address address) {
     return session_started == 0; // 0 se a sessão foi iniciada, -1 se não
 }
 
-bool user_exists(string user) {
+bool Server::user_exists(string user)
+{
     return !(user_sessions_semaphore.find(user) != user_sessions_semaphore.end());
 }
+
+void Server::create_notification(string user, string body)
+{
+
+}
+
 // call this function when new notification is created
 void Server::send(notification notification) {
     // go through list of followers and put notification in active followers buffer to be consumed
@@ -86,4 +93,9 @@ void Server::close_session(string user, host_address address) {
 
     // remove address from sessions map and signal semaphore and < (ip, port), notification to send > 
     // sem_post(sem_t *sem);
+}
+
+void Server::follow_user(string user, string user_to_follow)
+{
+    followers[user_to_follow].push_back(user);
 }
