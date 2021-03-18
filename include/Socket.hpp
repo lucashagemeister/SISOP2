@@ -19,6 +19,7 @@ class Socket
         int sendPacket(Packet packet);
 
 		Socket(int socketfd);
+		~Socket();
 };
 
 #endif

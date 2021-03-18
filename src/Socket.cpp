@@ -7,6 +7,10 @@ Socket::Socket(int socketfd){
     this->socketfd = socketfd;
 }
 
+Socket::~Socket(){
+    close(this->socketfd);
+}
+
 
 Packet* Socket::readPacket(){
 
@@ -25,18 +29,18 @@ Packet* Socket::readPacket(){
     uint16_t length = ntohs(headerBuffer[2]);
     uint16_t timestamp = ntohs(headerBuffer[3]);
 
-    Packet receivedPacket = Packet(type, seqn, timestamp);
+    Packet * receivedPacket = new Packet(type, seqn, timestamp);
 
     // READ PAYLOAD
     char payload[length];
-    int n = read(this->socketfd, payload, length);
+    n = read(this->socketfd, payload, length);
     if (n<0){
         cout << "ERROR reading header from socket" << endl;
         return NULL;
     }
 
-    receivedPacket.setPayload(payload);
-    return &receivedPacket;
+    receivedPacket->setPayload(payload);
+    return receivedPacket;
 }
 
 
@@ -56,7 +60,7 @@ int Socket::sendPacket(Packet packet){
         return n;
     }
 
-    int n = write(this->socketfd, packet.getPayload(), packet.getLength());
+    n = write(this->socketfd, packet.getPayload(), packet.getLength());
     if (n < 0) {
         cout << "ERROR writing payload to socket: " << this->socketfd << endl ;
     }

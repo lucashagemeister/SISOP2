@@ -1,7 +1,7 @@
 #include "../include/Packet.hpp"
 
 
-Packet::Packet(uint16_t type, char *payload){
+Packet::Packet(uint16_t type, char const *payload){
 
     uint16_t payloadLength = strlen(payload);
     if (payloadLength > MAX_PAYLOAD_LENGTH) {
@@ -17,7 +17,7 @@ Packet::Packet(uint16_t type, char *payload){
 }
 
 
-Packet::Packet(uint16_t type, uint16_t timestamp, char *payload){
+Packet::Packet(uint16_t type, uint16_t timestamp, char const *payload){
 
     uint16_t payloadLength = strlen(payload);
     if (payloadLength > MAX_PAYLOAD_LENGTH) {
@@ -67,7 +67,7 @@ void Packet::setSeqn(uint16_t seqn){
 void Packet::setTimestamp(uint16_t timestamp){
     this->timestamp = timestamp;
 }
-void Packet::setPayload(char* payload){
+void Packet::setPayload(char* const payload){
 
     uint16_t payloadLength = strlen(payload);
     if (payloadLength > MAX_PAYLOAD_LENGTH) {

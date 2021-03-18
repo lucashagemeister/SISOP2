@@ -20,10 +20,9 @@ class Packet {
 
 	public:
 
-        Packet(uint16_t type, char *payload);   // Get the timestamp when initializing the object
-        Packet(uint16_t type, uint16_t timestamp, char *payload);   
+        Packet(uint16_t type, char const *payload);   // Get the timestamp when initializing the object
+        Packet(uint16_t type, uint16_t timestamp, char const *payload);   
         Packet(uint16_t type, uint16_t seqn, uint16_t timestamp);
-        //Packet(packet packet);
 
 		uint16_t getType();
 		uint16_t getSeqn();
