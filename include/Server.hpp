@@ -21,9 +21,13 @@ public:
 private: 
     pthread_mutex_t start_session_mutex = PTHREAD_MUTEX_INITIALIZER;
 
+    uint32_t notification_id_counter;
+
     map<string, sem_t> user_sessions_semaphore;
     map< string, list< pair<string, int> > > sessions; // {user, [<ip, port>]}
     map< string, vector<string> > followers;
+    map< string, vector<uint32_t> > pending_notifications;
+    vector<__notification> active_notifications;
 
     bool try_to_start_session(string user, host_address address);
     void send(notification notification, list<string> followers);
@@ -31,15 +35,20 @@ private:
     void close_session(string user, host_address address);
     void follow_user(string user, string user_to_follow);
     bool user_exists(string user);
-    void create_notification(string user, string body);
+    void create_notification(string user, string body, time_t timestamp);
     bool user_is_active(string user);
 };
 
 typedef struct __notification {
+
+    __notification();
+    __notification(uint32_t new_id, time_t new_timestamp, string new_body, uint16_t new_length, uint16_t new_pending) :
+        id(new_id), timestamp(new_timestamp), body(new_body), length(new_length), pending(new_pending) {}
+
     uint32_t id; //Identificador da notificação (sugere-se um identificador único)
-    uint32_t timestamp; //Timestamp da notificação
-    const char* _string; //Mensagem
+    time_t timestamp; //Timestamp da notificação
+    string body; //Mensagem
     uint16_t length; //Tamanho da mensagem
-    list<string> pending; //Quantidade de leitores pendentes
+    uint16_t pending; //Quantidade de leitores pendentes
 
 } notification;

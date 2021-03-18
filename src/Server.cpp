@@ -14,6 +14,7 @@ Server::Server()
 
 Server::Server(host_address address)
 {
+    this->notification_id_counter = 0;
 	this->ip = address.ipv4;
 	this->port = address.port;
 }
@@ -46,9 +47,18 @@ bool Server::user_exists(string user)
     return !(user_sessions_semaphore.find(user) != user_sessions_semaphore.end());
 }
 
-void Server::create_notification(string user, string body)
+void Server::create_notification(string user, string body, time_t timestamp)
 {
+    uint16_t pending_users{0};
+    for (auto follower : followers[user])
+    {
+        pending_notifications[follower].push_back(notification_id_counter);
+        pending_users++;
+    }
 
+    __notification notif(notification_id_counter, timestamp, body, body.length(), pending_users);
+    active_notifications.push_back(notif);
+    notification_id_counter += 1;
 }
 
 // call this function when new notification is created
