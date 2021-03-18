@@ -1,12 +1,12 @@
 #include "include/Cliente.hpp"
-#include <pthread.h>  //preciso instalar no Windows para fazer funcionar ou ent�o rodar no Linux
+#include <pthread.h>  
 
 
 int main() {
     pthread_t threadSender;
     pthread_t threadReceiver;
 
-    int n = 10; //ver o que fazer com isso depois
+    int n = 10; 
 
     pthread_create(&threadSender, NULL, do_threadSender, &n);
     pthread_create(&threadReceiver, NULL, do_threadReceiver, &n);
