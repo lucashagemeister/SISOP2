@@ -9,19 +9,7 @@ Socket::Socket(int socketfd){
 
 Packet* Socket::readPacket(bool* connectedClient){
 
-
-    packet receivedPacket;
-
-
-    // read type
-    //read(this->sourceSocket, re)
-    // read seqn
-
-    // read length
-
-    // read timestamp
-
-    // read payload
+    
 
 
 
@@ -56,13 +44,13 @@ int Socket::sendPacket(Packet packet){
     int n = write(this->socketfd, buffer, sizeof(buffer)); 
 
     if (n < 0) {
-        cout << "ERROR writing to socket: " << this->socketfd << endl ;
+        cout << "ERROR writing header to socket: " << this->socketfd << endl ;
         return n;
     }
 
     int n = write(this->socketfd, packet.getPayload(), packet.getLength());
     if (n < 0) {
-        cout << "ERROR writing to socket: " << this->socketfd << endl ;
+        cout << "ERROR writing payload to socket: " << this->socketfd << endl ;
     }
 
     return n;
