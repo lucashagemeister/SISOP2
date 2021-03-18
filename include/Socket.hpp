@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <sys/socket.h>
+#include <netinet/in.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <iostream>
@@ -10,16 +11,14 @@
 
 class Socket
 {
-
 	private:
-		int sourceSocket;
-		int destSocket;
+		int socketfd;
 
 	public:
 		Packet* readPacket(bool* connectedClient);
         int sendPacket(Packet packet);
 
-		Socket(int sourceSocket, int destSocket);
+		Socket(int socketfd);
 };
 
 #endif

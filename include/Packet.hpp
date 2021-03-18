@@ -8,26 +8,40 @@
 #include "defines.hpp"
 
 
+// struct to serialize over the transmission
+typedef struct packet{
+    uint16_t type;
+    uint16_t seqn;
+    uint16_t length;
+    uint16_t timestamp;
+    const char* payload[MAX_PAYLOAD_LENGTH];
+} packet;
+
+
 class Packet {
 
     private:
-        uint16_t type;                  // See possible types in defines.hpp
-        uint16_t seqn;                  // Sequence number (weverton: "número de sequência do comando para vcs não lidarem com comandos repetidos"??)
-        uint16_t length;                // Payload length
-        time_t timestamp;               // Data timestamp
-        char payload[MAX_PAYLOAD_LENGTH];   // Content of the packet
+        uint16_t type;      // See possible types in defines.hpp
+        uint16_t seqn;      // Sequence number
+        uint16_t length;    // Payload length
+        time_t timestamp;   // Data timestamp
+        char payload[MAX_PAYLOAD_LENGTH];      // Content of the packet
 
 	public:
 
         Packet(uint16_t type, char *payload);   // Get the timestamp when initializing the object
         Packet(uint16_t type, time_t timestamp, char *payload);   // Get the provided timestamp
+        Packet(packet packet);
 
-		uint16_t getPacketType();
-		uint16_t getPacketSeqn();
-		uint16_t getPacketLength();
-		uint16_t getPacketTimestamp();
-        std::string getPacketPayload();
+		uint16_t getType();
+		uint16_t getSeqn();
+		uint16_t getLength();
+		uint16_t getTimestamp();
+        char* getPayload();
 };
+
+
+
 
 
 #endif

@@ -15,3 +15,7 @@ enum{
 #ifndef MAX_NOTIFICATION_LENGTH
 #define MAX_NOTIFICATION_LENGTH 129      // 128 + '\0' character
 #endif
+
+#ifndef PKT_HEADER_BUFFER_LENGTH
+#define PKT_HEADER_BUFFER_LENGTH 4     
+#endif

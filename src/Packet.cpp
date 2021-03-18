@@ -1,6 +1,5 @@
 #include "../include/Packet.hpp"
 
-using namespace std;
 
 Packet::Packet(uint16_t type, char *payload){
     this->type = type;
@@ -19,5 +18,27 @@ Packet::Packet(uint16_t type, time_t timestamp, char *payload){
     strcpy(this->payload, payload);
 }
 
+Packet::Packet(packet packet){
+    this->type = packet.type;
+    this->seqn = packet.seqn;
+    this->length = packet.length;
+    this->timestamp = packet.timestamp;
+    strcpy(this->payload, *packet.payload);
+}
 
 
+uint16_t Packet::getType(){
+    return this->type;
+}
+uint16_t Packet::getSeqn(){
+    return this->seqn;
+}
+uint16_t Packet::getLength(){
+    return this->length;
+}
+uint16_t Packet::getTimestamp(){
+    return this->timestamp;
+}
+char* Packet::getPayload(){
+    return this->payload;
+}
