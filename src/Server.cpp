@@ -28,13 +28,15 @@ bool Server::try_to_start_session(string user, host_address address)
         sem_init(&num_sessions, 0, 2);
         user_sessions_semaphore.insert({user, num_sessions}); // Usuário é criado com a disponibilidade de 2 sessões
         followers.insert(pair<string, vector<string>>(user, vector<string>()));
+        users_unread_notifications.insert({user, list<uint32_t>()});
     } 
     
     int session_started = sem_trywait(&(user_sessions_semaphore[user])); // tenta consumir um recurso de sessão
     if(session_started == 0) { 
-        // add user and (ip, port) to sessions map if session started
         // needs mutex
-        // sessions.insert({user, {ip, port}})
+        sessions.insert({user, list<host_address>()});
+        sessions[user].push_back(address);
+        active_users_pending_notifications.insert({address, list<uint32_t>()});
     }
     pthread_mutex_unlock(&start_session_mutex); // Fim SC
 
