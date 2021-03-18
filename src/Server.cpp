@@ -49,12 +49,16 @@ bool Server::user_exists(string user)
 
 void Server::create_notification(string user, string body, time_t timestamp)
 {
+    pthread_mutex_lock(&follower_count_mutex);
+
     uint16_t pending_users{0};
     for (auto follower : followers[user])
     {
         pending_notifications[follower].push_back(notification_id_counter);
         pending_users++;
     }
+
+    pthread_mutex_unlock(&follower_count_mutex);
 
     __notification notif(notification_id_counter, timestamp, body, body.length(), pending_users);
     active_notifications.push_back(notif);
@@ -72,6 +76,8 @@ void Server::send(notification notification, list<string> followers) {
             }
             // when all sessions from same user have notification on its entry, remove @ from list
             users_unread_notifications[user].erase(find(users_unread_notifications[user].begin(), users_unread_notifications[user].end(), notification));
+
+            users_unread_notifications[user].begin();
             // signal consumer that will send to client
             // ...
         }

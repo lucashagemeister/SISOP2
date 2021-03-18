@@ -20,6 +20,7 @@ public:
     
 private: 
     pthread_mutex_t start_session_mutex = PTHREAD_MUTEX_INITIALIZER;
+    pthread_mutex_t follower_count_mutex = PTHREAD_MUTEX_INITIALIZER;
 
     uint32_t notification_id_counter;
 
