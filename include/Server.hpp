@@ -22,7 +22,9 @@ private:
     pthread_mutex_t start_session_mutex = PTHREAD_MUTEX_INITIALIZER;
 
     map<string, sem_t> user_sessions_semaphore;
-    map< string, list< pair<string, int> > > sessions; // {user, [<ip, port>]}
+    map< string, list< host_address > > sessions; // {user, [<ip, port>]}
+    map< host_address, list< notification > > active_users_pending_notifications; // {<ip, port>, [notification]]}
+    map< string, list< notification > > users_unread_notifications; // {user, [notification]]}
     map< string, vector<string> > followers;
 
     bool try_to_start_session(string user, host_address address);
