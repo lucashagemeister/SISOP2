@@ -12,7 +12,8 @@ class Server{
     
     private: 
     bool try_to_start_session(string user, host_address address);
-    void send(notification notification);
+    void send(notification notification, list<string> followers);
+    void retrieve_notifications_from_offline_period(string user, host_address addr);
     void close_session(string user, host_address address);
 };
 
@@ -22,6 +23,8 @@ typedef struct __notification {
     const char* _string; //Mensagem
     uint16_t length; //Tamanho da mensagem
     list<string> pending; //Quantidade de leitores pendentes
+
+
 
 } notification;
 

@@ -10,8 +10,10 @@ using namespace std;
 
 pthread_mutex_t start_session_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-map<string, sem_t> user_sessions_semaphore;
-map< string, list< pair<string, int> > > sessions; // {user, [<ip, port>]}
+map< string, sem_t > user_sessions_semaphore;
+map< string, list< host_address > > sessions; // {user, [<ip, port>]}
+map< string, list< notification> > users_unread_notifications; // {user, [notification]}
+map< host_address, list< notification> > active_users_pending_notifications; // {<ip, port>, [notification]}
 
 
 Server::Server(){
@@ -44,23 +46,27 @@ bool Server::try_to_start_session(string user, host_address address) {
 }
 
 bool user_exists(string user) {
-    return !(user_sessions_semaphore.find(user) != user_sessions_semaphore.end());
+    return user_sessions_semaphore.find(user) != user_sessions_semaphore.end();
 }
+
 // call this function when new notification is created
-void Server::send(notification notification) {
-    // go through list of followers and put notification in active followers buffer to be consumed
-    // remove notification from active followers list, but keep it on offline followers for future consumption 
-
-    for(string user : notification.pending) {
-        for(auto host_address : sessions[user]) {
-            // put notification in map of < (ip, port), notifications to send > 
+void Server::send(notification notification, list<string> followers) {
+    for(string user : followers) {
+        if(user_is_active(user)) {
+            for(host_address address : sessions[user]) {
+                // put notification in map of < (ip, port), notifications to send > 
+                active_users_pending_notifications[address].push_back(notification);
+            }
             // when all sessions from same user have notification on its entry, remove @ from list
+            users_unread_notifications[user].erase(find(users_unread_notifications[user].begin(), users_unread_notifications[user].end(), notification));
             // signal consumer that will send to client
-
-            // when consumer wakes, send (?and erase users that have received notification from .pending)
-            // when new session is started from user that has notifications to be sent from the period it was offline, wake producer
+            // ...
         }
     }
+}
+
+bool user_is_active(string user) {
+    return sessions.find(user) != sessions.end();
 }
 /*                                        
 
@@ -75,7 +81,10 @@ Lista de perfis   |  Lista de seguidores  |   (id, timestamp, body, length, numb
 */
 
 // call this function when new session is started (after try_to_start_session()) to wake notification producer to client
-void Server::send(notification notification) {
+void Server::retrieve_notifications_from_offline_period(string user, host_address addr) {
+    for(notification notif : users_unread_notifications[user]) {
+        active_users_pending_notifications[addr].push_back(notif);
+    }
     // go through list of notiications pending to be sent to user that have just entered
     // and put them in its entry on < (ip, port), notifications to send > map
     // erase from previous list
