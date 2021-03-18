@@ -8,6 +8,10 @@ typedef struct address {
 	string ipv4;
 	int port;
 
+    bool operator ==(address other) {
+		return ipv4 == other.ipv4 && port == other.port;
+	}
+
 } host_address;
 
 class Server
@@ -55,7 +59,7 @@ typedef struct __notification {
     uint16_t length; //Tamanho da mensagem
     uint16_t pending; //Quantidade de leitores pendentes
 
-    bool operator ==(notification other) {
+    bool operator ==(__notification other) {
 		return id == other.id;
 	}
 
