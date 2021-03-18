@@ -1,14 +1,38 @@
 #include "../include/Socket.hpp"
 
-Socket::Socket(int sourceSocket, int destSocket){
-    this->sourceSocket = sourceSocket;
-    this->destSocket = destSocket;
+
+using namespace std;
+
+Socket::Socket(int socketfd){
+    this->socketfd = socketfd;
 }
 
-Packet* Socket::readPacket(bool* connectedClient){
-
+Socket::~Socket(){
+    close(this->socketfd);
 }
 
-int Socket::sendPacket(Packet packet){
 
+Packet* Socket::readPacket(){
+
+    Packet* pkt = new Packet();
+    memset(pkt, 0, sizeof (Packet));
+    int n = read(this->socketfd, pkt, sizeof(Packet));
+
+    if (n<0){
+        cout << "ERROR reading from socket" << endl;
+        return NULL;
+    }
+    return pkt;
+}
+
+
+int Socket::sendPacket(Packet pkt){
+    
+    int n = write(this->socketfd, &pkt, sizeof(pkt)); 
+
+    if (n < 0) {
+        cout << "ERROR writing to socket: " << this->socketfd << endl ;
+        return n;
+    }
+    return n;
 }

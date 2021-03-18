@@ -1,32 +1,39 @@
 #ifndef PACKET_HEADER
 #define PACKET_HEADER
 
+#include <iostream>
 #include <stdint.h>
 #include <string.h>
 #include <string>
-#include <ctime>
+#include "misc.hpp"
 #include "defines.hpp"
 
 
 class Packet {
 
     private:
-        uint16_t type;                  // See possible types in defines.hpp
-        uint16_t seqn;                  // Sequence number (weverton: "número de sequência do comando para vcs não lidarem com comandos repetidos"??)
-        uint16_t length;                // Payload length
-        time_t timestamp;               // Data timestamp
-        char payload[MAX_PAYLOAD_LENGTH];   // Content of the packet
+        uint16_t type;      // See possible types in defines.hpp
+        uint16_t seqn;      // Sequence number
+        uint16_t length;    // Payload length
+        time_t timestamp;   // Data timestamp
+        char payload[MAX_PAYLOAD_LENGTH];      // Content of the packet
 
 	public:
+        Packet();
+        Packet(uint16_t type, char const *payload);   // Get the timestamp when initializing the object
+        Packet(uint16_t type, time_t timestamp, char const *payload);   
+        Packet(uint16_t type, uint16_t seqn, time_t timestamp);
 
-        Packet(uint16_t type, char *payload);   // Get the timestamp when initializing the object
-        Packet(uint16_t type, time_t timestamp, char *payload);   // Get the provided timestamp
+		uint16_t getType();
+		uint16_t getSeqn();
+		uint16_t getLength();
+		time_t getTimestamp();
+        char* getPayload();
 
-		uint16_t getPacketType();
-		uint16_t getPacketSeqn();
-		uint16_t getPacketLength();
-		uint16_t getPacketTimestamp();
-        std::string getPacketPayload();
+        void setType(uint16_t type);
+        void setSeqn(uint16_t seqn);
+        void setTimestamp(time_t timestamp);
+        void setPayload(char* payload);
 };
 
 

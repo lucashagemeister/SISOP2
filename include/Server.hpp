@@ -26,11 +26,13 @@ private:
     map< string, vector<string> > followers;
 
     bool try_to_start_session(string user, host_address address);
-    void send(notification notification);
+    void send(notification notification, list<string> followers);
+    void retrieve_notifications_from_offline_period(string user, host_address addr);
     void close_session(string user, host_address address);
     void follow_user(string user, string user_to_follow);
     bool user_exists(string user);
     void create_notification(string user, string body);
+    bool user_is_active(string user);
 };
 
 typedef struct __notification {

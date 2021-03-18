@@ -1,42 +1,52 @@
-#include <pthread.h>
-#include <stdio.h> 
-#include <sys/socket.h> 
-#include <arpa/inet.h> 
-#include <unistd.h> 
-#include <string.h> 
-#define PORT 8080 
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netdb.h>
+#include <string> 
+#include "include/Packet.hpp"
+#include "include/Socket.hpp"
+#define PORT 20000
+
+
+using namespace std;
+
 
 int main() {
 
-    int sock = 0, valread; 
-	struct sockaddr_in serv_addr; 
-	char *hello = "Hello from client"; 
-	char buffer[1024] = {0}; 
-	if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) 
-	{ 
-		printf("\n Socket creation error \n"); 
-		return -1; 
-	} 
-
-	serv_addr.sin_family = AF_INET; 
-	serv_addr.sin_port = htons(PORT); 
+    int sockfd;
+    struct sockaddr_in serv_addr;
+    struct hostent *server;
 	
-	// Convert IPv4 and IPv6 addresses from text to binary form 
-	if(inet_pton(AF_INET, "127.0.0.1", &serv_addr.sin_addr)<=0) 
-	{ 
-		printf("\nInvalid address/ Address not supported \n"); 
-		return -1; 
-	} 
+	server = gethostbyname("127.0.0.1");
+    
+    if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) 
+        printf("ERROR opening socket\n");
+    
+	serv_addr.sin_family = AF_INET;     
+	serv_addr.sin_port = htons(PORT);    
+	serv_addr.sin_addr = *((struct in_addr *)server->h_addr);
+	bzero(&(serv_addr.sin_zero), 8);     
+	
 
-	if (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) 
-	{ 
-		printf("\nConnection Failed \n"); 
-		return -1; 
-	} 
-	send(sock , hello , strlen(hello) , 0 ); 
-	printf("Hello message sent\n"); 
-	valread = read( sock , buffer, 1024); 
-	printf("%s\n",buffer ); 
-	return 0;     
+	if (connect(sockfd,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) 
+        printf("ERROR connecting\n");
 
+	
+	Packet pkt(1, "Hi from client, this is a payload!");
+	Socket socket = Socket(sockfd);
+	socket.sendPacket(pkt);
+
+	Packet* rpkt = socket.readPacket();
+	std::cout << "Got server message: " << rpkt->getPayload() << endl;
+	std::cout << "Packet type: " << rpkt->getType()
+	<< "\nPacket seqn: " << rpkt->getSeqn()
+	<< "\nPacket timestamp: " << rpkt->getTimestamp()
+	<< "\nPayload len: " << rpkt->getLength() << endl;
+
+	close(sockfd);
+	return 0;
 }

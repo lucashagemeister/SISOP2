@@ -5,14 +5,15 @@
 #include <sys/types.h> 
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include "include/Packet.hpp"
+#include "include/Socket.hpp"
 
-#define PORT 4000
+#define PORT 20000
 
 int main(int argc, char *argv[])
 {
-	int sockfd, newsockfd, n;   // socket descriptors and 
+	int sockfd, newsockfd;
 	socklen_t clilen;
-	char buffer[256];
 	struct sockaddr_in serv_addr, cli_addr;
 	
 	if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) 
@@ -27,25 +28,30 @@ int main(int argc, char *argv[])
 		printf("ERROR on binding");
 	
 	listen(sockfd, 5);
+	std::cout << "Listening...\n";
 	
 	clilen = sizeof(struct sockaddr_in);
 	if ((newsockfd = accept(sockfd, (struct sockaddr *) &cli_addr, &clilen)) == -1) 
 		printf("ERROR on accept");
 	
-	bzero(buffer, 256);
 	
-	/* read from the socket */
-	n = read(newsockfd, buffer, 256);
-	if (n < 0) 
-		printf("ERROR reading from socket");
-	printf("Here is the message: %s\n", buffer);
-	
-	/* write in the socket */ 
-	n = write(newsockfd,"I got your message", 18);
-	if (n < 0) 
-		printf("ERROR writing to socket");
 
-	close(newsockfd);
+	Socket connectedSocket = Socket(newsockfd);
+	//Packet* receivedPacket = connectedSocket.readPacket();
+	Packet* rpkt = connectedSocket.readPacket();
+
+	if (rpkt != NULL){
+		std::cout << "Received message: " << rpkt->getPayload() << std::endl;
+		std::cout << "Packet type: " << rpkt->getType()
+		<< "\nPacket seqn: " << rpkt->getSeqn()
+		<< "\nPacket timestamp: " << rpkt->getTimestamp()
+		<< "\nPayload len: " << rpkt->getLength() << std::endl;
+	}
+
+	Packet newPacket = Packet(1, "I got your message ;)");
+	connectedSocket.sendPacket(newPacket);
+
 	close(sockfd);
+	close(newsockfd);
 	return 0; 
 }
