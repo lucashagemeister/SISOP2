@@ -1,19 +1,22 @@
-#include "../include/Cliente.hpp"
-#include <string.h>
-#include <iostream>
+#include "../include/Client.hpp"
+#include "../include/Notification.hpp"
+
 using namespace std;
 
-Cliente::Cliente(){
+Client::Client(){
+
+    // stabilishing connection 
+
 
 }
 
-Cliente::Cliente(char *clientName, char *listOfFollowers, int numberOfAccess){
+Client::Client(char *clientName, char *listOfFollowers, int numberOfAccess){
 	strcpy(this->clientName, clientName);
 	strcpy(this->listOfFollowers, listOfFollowers);
 	this->numberOfAccess = numberOfAccess;
 }
 
-void Cliente::do_threadSender(void* arg){
+void Client::do_threadSender(void* arg){
     pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
     while (TRUE) {
@@ -25,18 +28,18 @@ void Cliente::do_threadSender(void* arg){
     }
 }
 
-void Cliente::do_threadReceiver(void* arg){
+void Client::do_threadReceiver(void* arg){
 
     pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
-    notification apiTransmission;
+    Notification* apiTransmission;
 
     while (TRUE) {
         pthread_mutex_lock(&mutex);
         //IN�CIO DA SE��O CR�TICA
-        apiTransmission = classColombelli.getNewNotification();
-        if (apiTransmission != NULL) { //ver direitinho como comparar.
-            cout << "Tweet from" << apiTransmission.author << "at" << apiTransmission.timestamp << ":" << endl;
-            cout << "%s", apiTransmission._string << endl;
+        //apiTransmission = classColombelli.getNewNotification();
+        if (apiTransmission != NULL) {
+            cout << "Tweet from" << apiTransmission->getAuthor() << "at" << apiTransmission->getTimestamp() << ":" << endl;
+            //cout << "%s", apiTransmission._string << endl;
             apiTransmission = NULL;
         }
         //FIM DA SE��O CR�TICA

@@ -11,10 +11,15 @@
 class Socket
 {
 
+	private:
+		int sourceSocket;
+		int destSocket;
+
 	public:
-		Socket();
-		//Packet* readPacket(int client_socketfd, bool* connectedClient);
-        //int sendPacket(int socket_fd, Packet mypacket);
+		Packet* readPacket(bool* connectedClient);
+        int sendPacket(Packet packet);
+
+		Socket(int sourceSocket, int destSocket);
 };
 
 #endif
