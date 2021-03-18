@@ -68,10 +68,14 @@ void Server::create_notification(string user, string body, time_t timestamp)
 }
 
 // call this function when new notification is created
-void Server::send(uint32_t notification_id, list<string> followers) {
-    for(string user : followers) {
-        if(user_is_active(user)) {
-            for(auto address : sessions[user]) {
+void Server::send(uint32_t notification_id, list<string> followers) 
+{
+    for(string user : followers) 
+    {
+        if(user_is_active(user)) 
+        {
+            for(auto address : sessions[user]) 
+            {
                 // put notification in map of < (ip, port), notifications to send > 
                 active_users_pending_notifications[address].push_back(notification_id);
             }
@@ -101,8 +105,10 @@ Lista de perfis   |  Lista de seguidores  |   (id, timestamp, body, length, numb
 */
 
 // call this function when new session is started (after try_to_start_session()) to wake notification producer to client
-void Server::retrieve_notifications_from_offline_period(string user, host_address addr) {
-    for(auto notif : users_unread_notifications[user]) {
+void Server::retrieve_notifications_from_offline_period(string user, host_address addr) 
+{
+    for(auto notif : users_unread_notifications[user]) 
+    {
         active_users_pending_notifications[addr].push_back(notif);
     }
     // go through list of notiications pending to be sent to user that have just entered
@@ -111,10 +117,22 @@ void Server::retrieve_notifications_from_offline_period(string user, host_addres
     // wake consumer
 }
 
-void Server::close_session(string user, host_address address) {
+// call this function on consumer thread that will feed the user with its notifications
+void Server::read_notifications(host_address addr) 
+{
+    // search active_users_pending_notifications[addr] for all its notification_ids
+    // send active_notifications[id] with socket
+    // erase notifications from active_users_pending_notifications[addr]
+}
 
-    // remove address from sessions map and signal semaphore and < (ip, port), notification to send > 
-    // sem_post(sem_t *sem);
+void Server::close_session(string user, host_address address) 
+{
+    // remove address from sessions map and < (ip, port), notification to send > 
+    list<host_address>::iterator it = find(sessions[user].begin(), sessions[user].end(), address);
+    sessions[user].erase(it);
+    active_users_pending_notifications.erase(address);
+    // signal semaphore
+    sem_post(&(user_sessions_semaphore[user]));
 }
 
 void Server::follow_user(string user, string user_to_follow)

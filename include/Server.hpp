@@ -40,6 +40,7 @@ private:
     bool user_exists(string user);
     void create_notification(string user, string body, time_t timestamp);
     bool user_is_active(string user);
+    void read_notifications(host_address addr); 
 };
 
 typedef struct __notification {
