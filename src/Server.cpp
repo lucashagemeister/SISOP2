@@ -27,7 +27,7 @@ Server::Server(host_address address){
 bool Server::try_to_start_session(string user, host_address address) {
     pthread_mutex_lock(&start_session_mutex); // Início SC
 
-    if(user_exists(user)) {
+    if(!user_exists(user)) {
         sem_t num_sessions;
         sem_init(&num_sessions, 0, 2);
         user_sessions_semaphore.insert({user, num_sessions}); // Usuário é criado com a disponibilidade de 2 sessões
@@ -44,20 +44,46 @@ bool Server::try_to_start_session(string user, host_address address) {
 }
 
 bool user_exists(string user) {
-    return user_sessions_semaphore.find(user) == user_sessions_semaphore.end();
+    return !(user_sessions_semaphore.find(user) != user_sessions_semaphore.end());
 }
-
+// call this function when new notification is created
 void Server::send(notification notification) {
+    // go through list of followers and put notification in active followers buffer to be consumed
+    // remove notification from active followers list, but keep it on offline followers for future consumption 
 
     for(string user : notification.pending) {
         for(auto host_address : sessions[user]) {
-            // do notification send
+            // put notification in map of < (ip, port), notifications to send > 
+            // when all sessions from same user have notification on its entry, remove @ from list
+            // signal consumer that will send to client
+
+            // when consumer wakes, send (?and erase users that have received notification from .pending)
+            // when new session is started from user that has notifications to be sent from the period it was offline, wake producer
         }
     }
+}
+/*                                        
+
+                  |                       |  Lista de notificações recebidas pelo servidor  |  
+Lista de perfis   |  Lista de seguidores  |   (id, timestamp, body, length, number of       |  Fila de notificações pendentes de envio aos clientes
+                  |                       |  followers pending to receive notification)     |
+------------------------------------------------------------------------------------------------------------------------------------------------------
+@dez              | @onze, @doze          | 1, 1613618078, "olá", 3, 2                      |
+@onze             |                       |                                                 | <@dez 1>
+@doze             |                       |                                                 | <@dez 1>   
+
+*/
+
+// call this function when new session is started (after try_to_start_session()) to wake notification producer to client
+void Server::send(notification notification) {
+    // go through list of notiications pending to be sent to user that have just entered
+    // and put them in its entry on < (ip, port), notifications to send > map
+    // erase from previous list
+    // wake consumer
 }
 
 void Server::close_session(string user, host_address address) {
 
-    // remove address from sessions map and signal semaphore
+    // remove address from sessions map and signal semaphore and < (ip, port), notification to send > 
     // sem_post(sem_t *sem);
 }
