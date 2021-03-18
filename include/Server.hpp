@@ -23,12 +23,12 @@ private:
 
     map<string, sem_t> user_sessions_semaphore;
     map< string, list< host_address > > sessions; // {user, [<ip, port>]}
-    map< host_address, list< notification > > active_users_pending_notifications; // {<ip, port>, [notification]]}
-    map< string, list< notification > > users_unread_notifications; // {user, [notification]]}
+    map< host_address, list< uint32_t > > active_users_pending_notifications; // {<ip, port>, [notification]]}
+    map< string, list< uint32_t > > users_unread_notifications; // {user, [notification]]}
     map< string, vector<string> > followers;
 
     bool try_to_start_session(string user, host_address address);
-    void send(notification notification, list<string> followers);
+    void send(uint32_t notification_id, list<string> followers);
     void retrieve_notifications_from_offline_period(string user, host_address addr);
     void close_session(string user, host_address address);
     void follow_user(string user, string user_to_follow);
@@ -43,5 +43,9 @@ typedef struct __notification {
     const char* _string; //Mensagem
     uint16_t length; //Tamanho da mensagem
     list<string> pending; //Quantidade de leitores pendentes
+
+    bool operator ==(notification other) {
+		return id == other.id;
+	}
 
 } notification;
