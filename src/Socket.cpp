@@ -8,7 +8,7 @@ Socket::Socket(int socketfd){
 }
 
 
-Packet* Socket::readPacket(bool* connectedClient){
+Packet* Socket::readPacket(){
 
     // READ HEADER
     // 0-type, 1-seqn, 2-length, 3-timestamp. all of them in "htons"

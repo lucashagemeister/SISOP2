@@ -15,7 +15,7 @@ class Socket
 		int socketfd;
 
 	public:
-		Packet* readPacket(bool* connectedClient);
+		Packet* readPacket();
         int sendPacket(Packet packet);
 
 		Socket(int socketfd);

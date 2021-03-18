@@ -1,22 +1,13 @@
 #ifndef PACKET_HEADER
 #define PACKET_HEADER
 
+#include <iostream>
 #include <stdint.h>
 #include <string.h>
 #include <string>
 #include "misc.hpp"
 #include "defines.hpp"
 
-
-// struct to serialize over the transmission
-/*typedef struct packet{
-    uint16_t type;
-    uint16_t seqn;
-    uint16_t length;
-    uint16_t timestamp;
-    const char* payload[MAX_PAYLOAD_LENGTH];
-} packet;
-*/
 
 class Packet {
 

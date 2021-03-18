@@ -2,18 +2,32 @@
 
 
 Packet::Packet(uint16_t type, char *payload){
+
+    uint16_t payloadLength = strlen(payload);
+    if (payloadLength > MAX_PAYLOAD_LENGTH) {
+        std::cout << "ERROR payload exceeded maximum length\n" << payload << std::endl;
+        exit(1);
+    } 
+
     this->type = type;
     this->seqn = 0; 
-    this->length = strlen(payload);
+    this->length = payloadLength;
     this->timestamp = getU16Time();
     strcpy(this->payload, payload);
 }
 
 
 Packet::Packet(uint16_t type, uint16_t timestamp, char *payload){
+
+    uint16_t payloadLength = strlen(payload);
+    if (payloadLength > MAX_PAYLOAD_LENGTH) {
+        std::cout << "ERROR payload exceeded maximum length\n" << payload << std::endl;
+        exit(1);
+    } 
+
     this->type = type;
     this->seqn = 0;
-    this->length = strlen(payload);
+    this->length = payloadLength;
     this->timestamp = timestamp;
     strcpy(this->payload, payload);
 }
@@ -25,15 +39,6 @@ Packet::Packet(uint16_t type, uint16_t seqn, uint16_t timestamp){
     this->seqn = seqn;
     this->timestamp = timestamp;
 }
-
-/*
-Packet::Packet(packet packet){
-    this->type = packet.type;
-    this->seqn = packet.seqn;
-    this->length = packet.length;
-    this->timestamp = packet.timestamp;
-    strcpy(this->payload, *packet.payload);
-}*/
 
 
 uint16_t Packet::getType(){
@@ -63,6 +68,13 @@ void Packet::setTimestamp(uint16_t timestamp){
     this->timestamp = timestamp;
 }
 void Packet::setPayload(char* payload){
+
+    uint16_t payloadLength = strlen(payload);
+    if (payloadLength > MAX_PAYLOAD_LENGTH) {
+        std::cout << "ERROR payload exceeded maximum length\n" << payload << std::endl;
+        exit(1);
+    } 
+
     strcpy(this->payload, payload);
-    this->length = strlen(payload);
+    this->length = payloadLength;
 }

@@ -5,6 +5,8 @@
 #include <unistd.h> 
 #include <string.h>
 #include <string> 
+#include "include/Packet.hpp"
+#include "include/Socket.hpp"
 #define PORT 8080 
 
 
