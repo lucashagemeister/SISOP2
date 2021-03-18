@@ -7,31 +7,39 @@ Socket::Socket(int socketfd){
     this->socketfd = socketfd;
 }
 
+
 Packet* Socket::readPacket(bool* connectedClient){
 
-    
+    // READ HEADER
+    // 0-type, 1-seqn, 2-length, 3-timestamp. all of them in "htons"
+    uint16_t headerBuffer[PKT_HEADER_BUFFER_LENGTH];
+    int n = read(this->socketfd, headerBuffer, sizeof(headerBuffer));
 
+    if (n<0){
+        cout << "ERROR reading header from socket" << endl;
+        return NULL;
+    }
 
+    uint16_t type = ntohs(headerBuffer[0]);
+    uint16_t seqn = ntohs(headerBuffer[1]);
+    uint16_t length = ntohs(headerBuffer[2]);
+    uint16_t timestamp = ntohs(headerBuffer[3]);
 
-    return NULL;
-    /*
-	void *receivedPacket = (void*) malloc(sizeof(Packet));
-	int receivedBytes = 0;
-	int n;
+    Packet receivedPacket = Packet(type, seqn, timestamp);
 
+    // READ PAYLOAD
+    char payload[length];
+    int n = read(this->socketfd, payload, length);
+    if (n<0){
+        cout << "ERROR reading header from socket" << endl;
+        return NULL;
+    }
 
-    
-	while ( receivedBytes != sizeof(Packet)) {
-		n = read(this->sourceSocket, (Packet*)((uintptr_t) receivedPacket + receivedBytes), sizeof(Packet)-receivedBytes);
-		if (n < 0) {
-			cout << "ERROR reading from socket\n" << endl;
-			*connectedClient = false;
-			break;
-		}
-		receivedBytes += n;
-	} */
-
+    receivedPacket.setPayload(payload);
+    return &receivedPacket;
 }
+
+
 
 int Socket::sendPacket(Packet packet){
 
