@@ -1,6 +1,8 @@
 #include "../include/Client.hpp"
 #include "../include/Notification.hpp"
-
+#include <conio.h>
+const int MAX_NAME_SIZE = 129; //128 caracteres permitidos + @ de fim de mensagem
+const int CR = 13; 
 using namespace std;
 
 Client::Client(){
