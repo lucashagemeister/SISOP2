@@ -21,11 +21,11 @@ void Client::do_threadSender(void* arg){
     char *ch;
     ch = (char*)malloc(1 * sizeof(char)); //pois é, único jeito que to conseguindo é alocar memória para um caractere apenas. Vou ter que olhar um jeito melhor depois.
 	//char **message;
-	//message = (char**) malloc(MAX_NAME_SIZE * sizeof(char*));
-	//message[0] = (char*)malloc(MAX_NAME_SIZE * sizeof(char));
+	//message = (char**) malloc(MAX_MESSAGE_SIZE * sizeof(char*));
+	//message[0] = (char*)malloc(MAX_MESSAGE_SIZE * sizeof(char));
     int characters = 0;
     char* message;
-    message = (char*)malloc(MAX_NAME_SIZE * sizeof(char));
+    message = (char*)malloc(MAX_MESSAGE_SIZE * sizeof(char));
     int i = 0;
     //int j = 0;	
     while (TRUE) {
@@ -36,10 +36,10 @@ void Client::do_threadSender(void* arg){
 		if (ch[0] == CR) {
 			//j++;
 			cout << endl;
-			//message[j] = (char*)malloc(MAX_NAME_SIZE * sizeof(char));
+			//message[j] = (char*)malloc(MAX_MESSAGE_SIZE * sizeof(char));
 		}
 			
-		if (characters <= 130) {
+		if (characters <= MAX_MESSAGE_SIZE) {
 			_putch(ch[0]);
 			//message[i][j] = ch;
 			//message[i] = ch;
