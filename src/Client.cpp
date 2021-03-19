@@ -44,24 +44,13 @@ void Client::do_threadSender(void* arg){
 
        } while (c != '@' && characters <=MAX_MESSAGE_SIZE);
        if (c == '@')
-        message.push_back(line);	
+        message.push_back(line);	//pegar última linha da mensagem
 	
        cout << endl << "Mensagem enviada:" << endl;
+       for (auto v : message)
+            std::cout << v << "\n";
         //FIM DA SE��O CR�TICA
         pthread_mutex_unlock(&mutex);
-    }
-
-	
-
-    while (TRUE) {
-        do {
-            
-      if (c == '@')
-        message.push_back(line); // é preciso disso para pegara última linha da mensagem
-       
-      cout << endl << "Mensagem enviada: " << endl;
-        for (auto v : message)
-            std::cout << v << "\n";
     }
 }
 
