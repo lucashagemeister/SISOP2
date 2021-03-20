@@ -1,6 +1,5 @@
 #include "../include/Client.hpp"
 #include "../include/Notification.hpp"
-#include <conio.h>
 #include <list>
 const int MAX_MESSAGE_SIZE = 129; //128 caracteres permitidos + @ de fim de mensagem
 const int CR = 13; 
@@ -30,8 +29,7 @@ void Client::do_threadSender(void* arg){
         pthread_mutex_lock(&mutex);
         //IN�CIO DA SE��O CR�TICA
 	do {
-	   c = _getch();
-            _putch(c);
+	   c = getchar();
             if (c != CR) {
                 line = line + c;
             }
