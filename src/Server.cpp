@@ -3,8 +3,7 @@
 #include <semaphore.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <map>
-#include <vector>
+#include <algorithm>
 using namespace std;
 
 Server::Server()

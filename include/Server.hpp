@@ -3,6 +3,8 @@
 #include <pthread.h>
 #include <list>
 #include <string>
+#include <map>
+#include <vector>
 
 typedef struct address {
 	string ipv4;
@@ -61,6 +63,10 @@ typedef struct __notification {
 
     bool operator ==(__notification other) {
 		return id == other.id;
+	}
+
+    bool operator >(__notification other) {
+		return id > other.id;
 	}
 
 } notification;
