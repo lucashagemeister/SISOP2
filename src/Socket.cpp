@@ -32,7 +32,7 @@ Packet* Socket::readPacket(){
 
     if (n<0){
         std::cout << "ERROR reading from socket" << std::endl;
-        return NULL;
+        exit(1);
     }
     return pkt;
 }
@@ -44,7 +44,7 @@ int Socket::sendPacket(Packet pkt){
 
     if (n < 0) {
         std::cout << "ERROR writing to socket: " << this->socketfd << std::endl ;
-        return n;
+        exit(1);
     }
     return n;
 }
@@ -57,21 +57,8 @@ ServerSocket::ServerSocket() : Socket(){
 	this->serv_addr.sin_port = htons(PORT);
 	this->serv_addr.sin_addr.s_addr = INADDR_ANY;
 	bzero(&(this->serv_addr.sin_zero), 8);
-    
-}
-
-
-void ServerSocket::bindAndListen(){
-    /*
-    if (bind(this->socketfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) 
-		printf("ERROR on binding");
-	
-	listen(sockfd, MAX_TCP_CONNECTIONS);
-	std::cout << "Listening...\n";
-    */
 
 }
-
 
 void ClientSocket::connectToServer(){
     struct sockaddr_in serv_addr;
@@ -89,4 +76,45 @@ void ClientSocket::connectToServer(){
         exit(1);
     }
         
+}
+
+
+void ServerSocket::bindAndListen(){
+    
+    if (bind(this->getSocketfd(), (struct sockaddr *) &this->serv_addr, sizeof(this->serv_addr)) < 0) {
+		printf("ERROR on binding");
+        exit(1);
+    }
+	
+	listen(this->getSocketfd(), MAX_TCP_CONNECTIONS);
+	std::cout << "Listening...\n";
+}
+
+
+
+void ServerSocket::connectNewClient(pthread_t *threadID, void *(*communicationHandler)(void*)){
+
+    int *newsockfd = (int *) calloc(1, sizeof(int));
+	socklen_t clilen;
+	struct sockaddr_in cli_addr;
+    
+
+    // Accepting connection to start communicating
+    clilen = sizeof(struct sockaddr_in);
+    if ((*newsockfd = accept(this->getSocketfd(), (struct sockaddr *) &cli_addr, &clilen)) == -1) {
+        printf("ERROR on accept");
+        exit(1);
+    }
+
+    std::cout << "TRYING TO CONNECT IN: " << *newsockfd << "\n\n";
+
+    // Verify if there are free sessions available
+    // TO-DO
+
+    // Build args
+    communiction_handler_args *args = (communiction_handler_args *) calloc(1, sizeof(communiction_handler_args));
+    args->cli_addr = cli_addr;
+    args->connectedSocket = *newsockfd;
+
+    pthread_create(threadID, NULL, communicationHandler, (void *)args);
 }

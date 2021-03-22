@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <iostream>
+#include <pthread.h>
 #include "Packet.hpp"
 
 class Socket
@@ -38,9 +39,17 @@ class ServerSocket : public Socket {
 		struct sockaddr_in serv_addr;
 
 		void bindAndListen();
+		void connectNewClient(pthread_t *threadID,  void *(*communicationHandler)(void*));
 
 		ServerSocket();
 
 };
+
+
+struct communiction_handler_args {
+	int connectedSocket;
+	sockaddr_in cli_addr; 
+};
+
 
 #endif

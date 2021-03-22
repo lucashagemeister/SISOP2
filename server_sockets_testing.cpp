@@ -8,34 +8,19 @@
 #include "include/Packet.hpp"
 #include "include/Socket.hpp"
 #include "include/defines.hpp"
-
-#include <pthread.h>
-
-
     
 
-int main(int argc, char *argv[])
-{
-	pthread_t threadConnections[MAX_TCP_CONNECTIONS];
 
-	int sockfd, newsockfd;
-	socklen_t clilen;
-	struct sockaddr_in serv_addr, cli_addr;
-	
-	
-	serv_addr.sin_family = AF_INET;
-	serv_addr.sin_port = htons(PORT);
-	serv_addr.sin_addr.s_addr = INADDR_ANY;
-	bzero(&(serv_addr.sin_zero), 8);     
-    
-	
+void *communicationHandlerExample(void *handlerArgs){
 
+	struct communiction_handler_args *args = (struct communiction_handler_args *)handlerArgs;
+	Socket connectedSocket = Socket(args->connectedSocket);
+
+	std::cout << "Handler recebeu porta: " << connectedSocket.getSocketfd() << "\n\n";
+
+	int i=100;
 	while (1){
-		clilen = sizeof(struct sockaddr_in);
-		if ((newsockfd = accept(sockfd, (struct sockaddr *) &cli_addr, &clilen)) == -1) 
-			printf("ERROR on accept");
 		
-		Socket connectedSocket = Socket(newsockfd);
 		Packet* rpkt = connectedSocket.readPacket();
 
 		if (rpkt != NULL){
@@ -43,18 +28,30 @@ int main(int argc, char *argv[])
 			std::cout << "Packet type: " << rpkt->getType()
 			<< "\nPacket seqn: " << rpkt->getSeqn()
 			<< "\nPacket timestamp: " << rpkt->getTimestamp()
-			<< "\nPayload len: " << rpkt->getLength() << std::endl;
+			<< "\nPayload len: " << rpkt->getLength() << "\n\n";
 		}
 
-		Packet newPacket = Packet(1, "I got your message ;)");
+		Packet newPacket = Packet(i, "I got your message ;)");
 		connectedSocket.sendPacket(newPacket);
-		close(newsockfd);
 
+		i++;
 		sleep(5);
 	}
+}
 
 
-	close(sockfd);
-	
+int main(int argc, char *argv[])
+{
+	pthread_t threadConnections[MAX_TCP_CONNECTIONS];
+	int i = 0;
+
+	ServerSocket socket = ServerSocket();
+	socket.bindAndListen();
+
+	while (1){
+		socket.connectNewClient(&threadConnections[i], communicationHandlerExample);
+		i++;
+	}
+
 	return 0; 
 }

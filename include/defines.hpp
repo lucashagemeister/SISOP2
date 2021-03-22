@@ -9,7 +9,7 @@ enum{
 #endif
 
 #ifndef PORT
-#define PORT 4242
+#define PORT 4000
 #endif
 
 #ifndef MAX_PAYLOAD_LENGTH
