@@ -1,8 +1,8 @@
 #include "../include/Client.hpp"
 #include "../include/Notification.hpp"
+#include "../include/defines.hpp"
 #include <list>
-const int MAX_MESSAGE_SIZE = 129; //128 caracteres permitidos + @ de fim de mensagem
-const int CR = 13; 
+
 using namespace std;
 
 Client::Client(){
@@ -40,7 +40,7 @@ void Client::do_threadSender(void* arg){
             }
             characters++;
 
-       } while (c != '@' && characters <=MAX_MESSAGE_SIZE);
+       } while (c != '@' && characters <= MAX_NOTIFICATION_LENGTH+1);
        if (c == '@')
         message.push_back(line);	//pegar última linha da mensagem
 	
