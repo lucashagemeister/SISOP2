@@ -18,35 +18,87 @@ Client::Client(char *clientName, char *listOfFollowers, int numberOfAccess){
 	this->numberOfAccess = numberOfAccess;
 }
 
-void Client::do_threadSender(void* arg){
-    pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+
+void cleanBuffer(void) {
+
+    char c;
+    while ((c = getchar()) != '\n' && c != EOF);
+
+}
+
+void executeSendCommand() {
     list<string> message; //mensagem vai ser uma lista de linhas
     string line;
     char c;
     int characters = 0;
-	
-    while (TRUE) {
-        pthread_mutex_lock(&mutex);
-        //INICIO DA SECAO CRITICA
-	do {
-	   c = getchar();
+        do {
+            c = getchar();
             if (c != CR) {
                 line = line + c;
             }
-            else { 
+            else {
                 message.push_back(line);
                 line = "";
                 cout << endl;
             }
             characters++;
 
-       } while (c != '@' && characters <= MAX_NOTIFICATION_LENGTH+1);
-       if (c == '@')
-        message.push_back(line);	//pegar última linha da mensagem
+        } while (c != '@' && characters <= MAX_NOTIFICATION_LENGTH + 1);
+        if (c == '@') {
+            line.pop_back(); //remover o "@" da mensagem, pois ele eh soh um sinalizador de fim de mensagem
+            message.push_back(line);	//pegar última linha da mensagem                
+        }
+        //!!! COLOMBELLI, ESTE FOR SÓ IMPRIME MESSAGE PARA VER SE ESTÁ FUNCIONANDO, MAS TEMOS DE TROCAR PARA ALGO QUE FAÇA COM QUE MESSAGE SEJA ENVIADO AO SOCKET. COMO FAZEMOS?
+    std::cout << "\nSent Message" << endl;
+    for (auto v : message)
+        std::cout << v << "\n";
+}
+
+void executeFollowCommand() {
+    string person;
+    char c;
+    int characters = 0;
+    int flagSpaces = 0;
+
+    do {
+        c = getchar();
+        if (c != CR) {
+            person = person + c;
+        }
+        if (c == ' ') {
+            std::cout << "\nInvalid username! A username does not have whitespaces!" << endl;
+            flagSpaces++;
+        }
+            
+    } while (c != LF && characters <= MAX_NOTIFICATION_LENGTH + 1 && c!= ' ');
+
+    if (person[0] != '@') {
+        std::cout << "\nInvalid username! A username starts with '@' (@username)." << endl;
+    }
+
+    //!!! COLOMBELLI, ESTE SÓ IMPRIME QUEM A PESSOA QUER SEGUIR PARA VER SE ESTÁ FUNCIONANDO, MAS TEMOS DE TROCAR PARA ALGO QUE FAÇA COM QUE PERSON SEJA ENVIADO AO SOCKET. COMO FAZEMOS?
+    if (flagSpaces == 0 && person[0] == '@') {
+        std::cout << "Now you're following " << person << endl;
+    }  
+}
+
+
+void Client::do_threadSender(void* arg){
+    pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+    char c; 
+    std::string command;
 	
-       cout << endl << "Mensagem enviada:" << endl;
-       for (auto v : message)
-            std::cout << v << "\n";
+    while (TRUE) {  //PROVISORIO, SUBSTITUIR POR COMANDOS (por exemplo, se command = "SEND", chamar executeSendCommand). Estou tentando, mas ainda tá dando problema com getchar
+        pthread_mutex_lock(&mutex);
+	    
+        //INICIO DA SECAO CRITICA
+	cout << "INICIANDO SEND... \n" << endl;
+        executeSendCommand();
+        cleanBuffer();
+        cout << "INICIANDO FOLLOW... \n" << endl;
+        executeFollowCommand();
+        cleanBuffer();
+	    
         //FIM DA SECAOO CRITICA
         pthread_mutex_unlock(&mutex);
     }
