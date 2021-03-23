@@ -19,6 +19,9 @@ public:
  private:
 	void do_threadSender(void* arg);
 	void do_threadReceiver(void* arg);
+	void cleanBuffer(void);
+	void executeSendCommand();
+	void executeFollowCommand();
 
 };
 
