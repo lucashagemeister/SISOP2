@@ -7,51 +7,51 @@
 #include <netinet/in.h>
 #include "include/Packet.hpp"
 #include "include/Socket.hpp"
+#include "include/defines.hpp"
+    
 
-#define PORT 20000
+
+void *communicationHandlerExample(void *handlerArgs){
+
+	struct communiction_handler_args *args = (struct communiction_handler_args *)handlerArgs;
+	Socket connectedSocket = Socket(args->connectedSocket);
+
+	std::cout << "Handler recebeu porta: " << connectedSocket.getSocketfd() << "\n\n";
+
+	int i=100;
+	while (1){
+		
+		Packet* rpkt = connectedSocket.readPacket();
+
+		if (rpkt != NULL){
+			std::cout << "Received message: " << rpkt->getPayload() << std::endl;
+			std::cout << "Packet type: " << rpkt->getType()
+			<< "\nPacket seqn: " << rpkt->getSeqn()
+			<< "\nPacket timestamp: " << rpkt->getTimestamp()
+			<< "\nPayload len: " << rpkt->getLength() << "\n\n";
+		}
+
+		Packet newPacket = Packet(i, "I got your message ;)");
+		connectedSocket.sendPacket(newPacket);
+
+		i++;
+		sleep(5);
+	}
+}
+
 
 int main(int argc, char *argv[])
 {
-	int sockfd, newsockfd;
-	socklen_t clilen;
-	struct sockaddr_in serv_addr, cli_addr;
-	
-	if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) 
-        printf("ERROR opening socket");
-	
-	serv_addr.sin_family = AF_INET;
-	serv_addr.sin_port = htons(PORT);
-	serv_addr.sin_addr.s_addr = INADDR_ANY;
-	bzero(&(serv_addr.sin_zero), 8);     
-    
-	if (bind(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) 
-		printf("ERROR on binding");
-	
-	listen(sockfd, 5);
-	std::cout << "Listening...\n";
-	
-	clilen = sizeof(struct sockaddr_in);
-	if ((newsockfd = accept(sockfd, (struct sockaddr *) &cli_addr, &clilen)) == -1) 
-		printf("ERROR on accept");
-	
-	
+	pthread_t threadConnections[MAX_TCP_CONNECTIONS];
+	int i = 0;
 
-	Socket connectedSocket = Socket(newsockfd);
-	//Packet* receivedPacket = connectedSocket.readPacket();
-	Packet* rpkt = connectedSocket.readPacket();
+	ServerSocket socket = ServerSocket();
+	socket.bindAndListen();
 
-	if (rpkt != NULL){
-		std::cout << "Received message: " << rpkt->getPayload() << std::endl;
-		std::cout << "Packet type: " << rpkt->getType()
-		<< "\nPacket seqn: " << rpkt->getSeqn()
-		<< "\nPacket timestamp: " << rpkt->getTimestamp()
-		<< "\nPayload len: " << rpkt->getLength() << std::endl;
+	while (1){
+		socket.connectNewClient(&threadConnections[i], communicationHandlerExample);
+		i++;
 	}
 
-	Packet newPacket = Packet(1, "I got your message ;)");
-	connectedSocket.sendPacket(newPacket);
-
-	close(sockfd);
-	close(newsockfd);
 	return 0; 
 }

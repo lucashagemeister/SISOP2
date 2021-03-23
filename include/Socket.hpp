@@ -4,9 +4,11 @@
 #include <stdint.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <netdb.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <iostream>
+#include <pthread.h>
 #include "Packet.hpp"
 
 class Socket
@@ -15,11 +17,39 @@ class Socket
 		int socketfd;
 
 	public:
+		int getSocketfd();
+		
 		Packet* readPacket();
         int sendPacket(Packet packet);
-
+		
+		Socket();
 		Socket(int socketfd);
 		~Socket();
 };
+
+class ClientSocket : public Socket {
+	public:
+		void connectToServer();
+};
+
+
+class ServerSocket : public Socket {
+	
+	public:
+		struct sockaddr_in serv_addr;
+
+		void bindAndListen();
+		void connectNewClient(pthread_t *threadID,  void *(*communicationHandler)(void*));
+
+		ServerSocket();
+
+};
+
+
+struct communiction_handler_args {
+	int connectedSocket;
+	sockaddr_in cli_addr; 
+};
+
 
 #endif
