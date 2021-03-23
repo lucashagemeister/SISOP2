@@ -88,7 +88,7 @@ void Client::do_threadSender(void* arg){
     char c; 
     std::string command;
 	
-    while (TRUE) {  //PROVISORIO, SUBSTITUIR POR COMANDOS (por exemplo, se command = "SEND", chamar executeSendCommand). Estou tentando, mas ainda tá dando problema com getchar
+    while (TRUE) {  //PROVISORIO, SUBSTITUIR POR COMANDOS (exemplo: se command = "SEND", chamar executeSendCommand). Estou tentando, mas ainda tá dando problema com getchar
         pthread_mutex_lock(&mutex);
 	    
         //INICIO DA SECAO CRITICA
