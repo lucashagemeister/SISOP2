@@ -5,6 +5,7 @@
 #include <string>
 #include <map>
 #include <vector>
+#include <queue>
 
 typedef struct address {
 	string ipv4;
@@ -32,7 +33,7 @@ private:
 
     map<string, sem_t> user_sessions_semaphore;
     map< string, list< host_address > > sessions; // {user, [<ip, port>]}
-    map< host_address, list< uint32_t > > active_users_pending_notifications; // {<ip, port>, [notification]]}
+    map< host_address, priority_queue< uint32_t > > active_users_pending_notifications; // {<ip, port>, [notification]]}
     map< string, list< uint32_t > > users_unread_notifications; // {user, [notification]]}
     map< string, vector<string> > followers;
     map< string, vector<uint32_t> > pending_notifications;
@@ -63,10 +64,6 @@ typedef struct __notification {
 
     bool operator ==(__notification other) {
 		return id == other.id;
-	}
-
-    bool operator >(__notification other) {
-		return id > other.id;
 	}
 
 } notification;

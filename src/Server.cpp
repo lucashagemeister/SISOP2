@@ -1,9 +1,9 @@
 #include "../include/Server.hpp"
 #include <iostream>
+#include <algorithm>
 #include <semaphore.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <algorithm>
 using namespace std;
 
 Server::Server()
@@ -32,15 +32,16 @@ bool Server::try_to_start_session(string user, host_address address)
     } 
     
     int session_started = sem_trywait(&(user_sessions_semaphore[user])); // tenta consumir um recurso de sessão
-    if(session_started == 0) { 
+    if(session_started == 0) // 0 se a sessão foi iniciada, -1 se não
+    { 
         // needs mutex
         sessions.insert({user, list<host_address>()});
         sessions[user].push_back(address);
-        active_users_pending_notifications.insert({address, list<uint32_t>()});
+        active_users_pending_notifications.insert({address, priority_queue<uint32_t>()});
     }
     pthread_mutex_unlock(&start_session_mutex); // Fim SC
 
-    return session_started == 0; // 0 se a sessão foi iniciada, -1 se não
+    return session_started == 0; 
 }
 
 bool Server::user_exists(string user)
@@ -76,7 +77,7 @@ void Server::send(uint32_t notification_id, list<string> followers)
             for(auto address : sessions[user]) 
             {
                 // put notification in map of < (ip, port), notifications to send > 
-                active_users_pending_notifications[address].push_back(notification_id);
+                active_users_pending_notifications[address].push(notification_id);
             }
             // when all sessions from same user have notification on its entry, remove @ from list
             list<uint32_t>::iterator it = find(users_unread_notifications[user].begin(), users_unread_notifications[user].end(), notification_id);
@@ -106,9 +107,9 @@ Lista de perfis   |  Lista de seguidores  |   (id, timestamp, body, length, numb
 // call this function when new session is started (after try_to_start_session()) to wake notification producer to client
 void Server::retrieve_notifications_from_offline_period(string user, host_address addr) 
 {
-    for(auto notif : users_unread_notifications[user]) 
+    for(auto notification_id : users_unread_notifications[user]) 
     {
-        active_users_pending_notifications[addr].push_back(notif);
+        active_users_pending_notifications[addr].push(notification_id);
     }
     // go through list of notiications pending to be sent to user that have just entered
     // and put them in its entry on < (ip, port), notifications to send > map

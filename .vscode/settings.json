@@ -1,0 +1,10 @@
+{
+    "files.associations": {
+        "queue": "cpp",
+        "*.ipp": "cpp",
+        "atomic": "cpp",
+        "cstdint": "cpp",
+        "random": "cpp",
+        "*.tcc": "cpp"
+    }
+}
