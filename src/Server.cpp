@@ -32,6 +32,7 @@ Server::Server(host_address address)
     pthread_mutex_init(&mutex_notification_sender, NULL);
 }
 
+
 // se não tiver um host_address, eu posso fazer e devolver um session_id
 bool Server::try_to_start_session(string user, host_address address)
 {
@@ -63,6 +64,7 @@ bool Server::user_exists(string user)
     return user_sessions_semaphore.find(user) != user_sessions_semaphore.end();
 }
 
+
 // call this function when new notification is created
 void Server::create_notification(string user, string body, time_t timestamp)
 {
@@ -78,7 +80,7 @@ void Server::create_notification(string user, string body, time_t timestamp)
         pending_users++;
     }
 
-    notification notif(notification_id_counter, timestamp, body, body.length(), pending_users);
+    notification notif(notification_id_counter, user, timestamp, body, body.length(), pending_users);
     active_notifications.push_back(notif);
     assign_notification_to_active_sessions(notification_id_counter, followers[user]);
     notification_id_counter += 1;
@@ -96,7 +98,6 @@ void Server::assign_notification_to_active_sessions(uint32_t notification_id, li
             pthread_mutex_lock(&mutex_notification_sender);
             for(auto address : sessions[user]) 
             {
-                // put notification in map of < (ip, port), notifications to send > 
                 active_users_pending_notifications[address].push(notification_id);
             }
             // when all sessions from same user have notification on its entry, remove @ from list
@@ -115,34 +116,35 @@ bool Server::user_is_active(string user)
     return sessions.find(user) != sessions.end();
 }
 
+
 // call this function when new session is started (after try_to_start_session()) to wake notification producer to client
 void Server::retrieve_notifications_from_offline_period(string user, host_address addr) 
 {
     pthread_mutex_lock(&mutex_notification_sender);
-    // go through list of notiications pending to be sent to user that have just entered
+    
     for(auto notification_id : users_unread_notifications[user]) 
     {
-        // put them in its entry on < (ip, port), notifications to send > map
         active_users_pending_notifications[addr].push(notification_id);
     }
-    // erase from previous list
+    
     (users_unread_notifications[user]).clear();
+
     // signal consumer
     pthread_cond_signal(&cond_notification_full);
     pthread_mutex_lock(&mutex_notification_sender);
 }
 
-// call this function on consumer thread that will feed the user with its notifications
-bool Server::read_notifications(host_address addr, Socket socket) 
-{
-    int n;
 
+// call this function on consumer thread that will feed the user with its notifications
+vector<notification> Server::read_notifications(host_address addr) 
+{
+    vector<notification> notifications = vector<notification>();
     pthread_mutex_lock(&mutex_notification_sender);
-    // sleep while user doesn't have notifications to read
+    
     while (active_users_pending_notifications[addr].empty()) { 
+        // sleep while user doesn't have notifications to read
         pthread_cond_wait(&cond_notification_full, &mutex_notification_sender); 
     }
-    // search active_users_pending_notifications[addr] for all its notification_ids
     while(!active_users_pending_notifications[addr].empty()) 
     {
         uint32_t notification_id = (active_users_pending_notifications[addr]).top();
@@ -150,35 +152,29 @@ bool Server::read_notifications(host_address addr, Socket socket)
         {
             if(notif.id == notification_id)
             {
-                
-                Packet packetToSend = Packet(NOTIFICATION_PKT, notif.timestamp, notif.body.c_str());
-                n = socket.sendPacket(packetToSend);
-                if (n < 0){
-                    std::cout << "Connection closed." << std::endl;
-                    
-                    pthread_cond_signal(&cond_notification_empty);
-                    pthread_mutex_lock(&mutex_notification_sender);
-                    return false;
-                }
-
+                notifications.push_back(notif);
                 break;
             }
         }
-        // erase notifications from active_users_pending_notifications[addr]
+        
         (active_users_pending_notifications[addr]).pop();
     }
+
+    // signal producer
     pthread_cond_signal(&cond_notification_empty);
     pthread_mutex_lock(&mutex_notification_sender);
-    return true;
+
+    return notifications;
 }
+
 
 // call this function when client presses ctrl+c or ctrl+d
 void Server::close_session(string user, host_address address) 
 {
     pthread_mutex_lock(&mutex_session);
-    // remove address from sessions map and < (ip, port), notification to send > 
+    
     list<host_address>::iterator it = find(sessions[user].begin(), sessions[user].end(), address);
-    if(it != sessions[user].end())
+    if(it != sessions[user].end()) // remove address from sessions map and < (ip, port), notification to send > 
     {
         sessions[user].erase(it);
         active_users_pending_notifications.erase(address);
@@ -188,6 +184,7 @@ void Server::close_session(string user, host_address address)
     }
     pthread_mutex_unlock(&mutex_session);
 }
+
 
 void Server::follow_user(string user, string user_to_follow)
 {

@@ -27,10 +27,11 @@ typedef struct address {
 typedef struct __notification {
 
     __notification();
-    __notification(uint32_t new_id, time_t new_timestamp, string new_body, uint16_t new_length, uint16_t new_pending) :
-        id(new_id), timestamp(new_timestamp), body(new_body), length(new_length), pending(new_pending) {}
+    __notification(uint32_t new_id, string new_author, time_t new_timestamp, string new_body, uint16_t new_length, uint16_t new_pending) :
+        id(new_id), author(new_author), timestamp(new_timestamp), body(new_body), length(new_length), pending(new_pending) {}
 
     uint32_t id; //Identificador da notificação (sugere-se um identificador único)
+    string author; 
     time_t timestamp; //Timestamp da notificação
     string body; //Mensagem
     uint16_t length; //Tamanho da mensagem
@@ -55,7 +56,7 @@ public:
     void create_notification(string user, string body, time_t timestamp);
     void close_session(string user, host_address address);
     void retrieve_notifications_from_offline_period(string user, host_address addr);
-    bool read_notifications(host_address addr, Socket socket);
+    vector<notification> read_notifications(host_address addr);
 
 
     
