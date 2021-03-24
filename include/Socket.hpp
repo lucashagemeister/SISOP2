@@ -4,12 +4,14 @@
 #include <stdint.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
 #include <netdb.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <iostream>
 #include <pthread.h>
 #include "Packet.hpp"
+#include "Server.hpp"
 
 class Socket
 {
@@ -21,6 +23,7 @@ class Socket
 		
 		Packet* readPacket();
         int sendPacket(Packet packet);
+		int sendPacket(Packet pkt, int socketfd);
 		
 		Socket();
 		Socket(int socketfd);
@@ -39,7 +42,7 @@ class ServerSocket : public Socket {
 		struct sockaddr_in serv_addr;
 
 		void bindAndListen();
-		void connectNewClient(pthread_t *threadID,  void *(*communicationHandler)(void*));
+		void connectNewClient(pthread_t *threadID,  void *(*communicationHandler)(void*), Server server);
 
 		ServerSocket();
 
@@ -48,7 +51,8 @@ class ServerSocket : public Socket {
 
 struct communiction_handler_args {
 	int connectedSocket;
-	sockaddr_in cli_addr; 
+	host_address client_address; 
+	string user;
 };
 
 

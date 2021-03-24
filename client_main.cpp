@@ -1,4 +1,4 @@
-#include "./include/Cliente.hpp"
+#include "./include/Client.hpp"
 #include <pthread.h>  
 
 int main() {

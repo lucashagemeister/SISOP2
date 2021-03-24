@@ -48,6 +48,9 @@ public:
     Server(host_address addr);
     string ip; 
     int port;
+
+    bool try_to_start_session(string user, host_address address);
+    void follow_user(string user, string user_to_follow);
     
 private: 
     pthread_mutex_t mutex_session;
@@ -66,11 +69,9 @@ private:
     map< string, vector<string> > followers;
     vector<notification> active_notifications;
 
-    bool try_to_start_session(string user, host_address address);
     void send(uint32_t notification_id, list<string> followers);
     void retrieve_notifications_from_offline_period(string user, host_address addr);
     void close_session(string user, host_address address);
-    void follow_user(string user, string user_to_follow);
     bool user_exists(string user);
     void create_notification(string user, string body, time_t timestamp);
     bool user_is_active(string user);
