@@ -164,11 +164,14 @@ void Server::close_session(string user, host_address address)
     pthread_mutex_lock(&mutex_session);
     // remove address from sessions map and < (ip, port), notification to send > 
     list<host_address>::iterator it = find(sessions[user].begin(), sessions[user].end(), address);
-    sessions[user].erase(it);
-    active_users_pending_notifications.erase(address);
+    if(it != sessions[user].end())
+    {
+        sessions[user].erase(it);
+        active_users_pending_notifications.erase(address);
 
-    // signal semaphore
-    sem_post(&(user_sessions_semaphore[user]));
+        // signal semaphore
+        sem_post(&(user_sessions_semaphore[user]));
+    }
     pthread_mutex_unlock(&mutex_session);
 }
 
