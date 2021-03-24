@@ -51,6 +51,9 @@ public:
 
     bool try_to_start_session(string user, host_address address);
     void follow_user(string user, string user_to_follow);
+    void create_notification(string user, string body, time_t timestamp);
+    void close_session(string user, host_address address);
+    
     
 private: 
     pthread_mutex_t mutex_session;
@@ -71,10 +74,9 @@ private:
 
     void assign_notification_to_active_sessions(uint32_t notification_id, list<string> followers);
     void retrieve_notifications_from_offline_period(string user, host_address addr);
-    void close_session(string user, host_address address);
     bool user_exists(string user);
-    void create_notification(string user, string body, time_t timestamp);
     bool user_is_active(string user);
+    void send(uint32_t notification_id, list<string> followers);
     void read_notifications(host_address addr);
 
 };
