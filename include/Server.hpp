@@ -26,8 +26,11 @@ public:
     int port;
     
 private: 
-    pthread_mutex_t start_session_mutex = PTHREAD_MUTEX_INITIALIZER;
+    pthread_mutex_t mutex_session = PTHREAD_MUTEX_INITIALIZER;
     pthread_mutex_t follower_count_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+    pthread_cond_t 	cond_notification_empty, cond_notification_full;
+    pthread_mutex_t mutex_notification_sender;
 
     uint32_t notification_id_counter;
 
@@ -36,7 +39,6 @@ private:
     map< host_address, priority_queue< uint32_t > > active_users_pending_notifications; // {<ip, port>, [notification]]}
     map< string, list< uint32_t > > users_unread_notifications; // {user, [notification]]}
     map< string, vector<string> > followers;
-    map< string, vector<uint32_t> > pending_notifications;
     vector<__notification> active_notifications;
 
     bool try_to_start_session(string user, host_address address);
@@ -47,7 +49,8 @@ private:
     bool user_exists(string user);
     void create_notification(string user, string body, time_t timestamp);
     bool user_is_active(string user);
-    void read_notifications(host_address addr); 
+    void read_notifications(host_address addr);
+
 };
 
 typedef struct __notification {
