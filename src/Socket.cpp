@@ -56,8 +56,10 @@ int Socket::sendPacket(Packet pkt){
 // overloading for non-initialized Socket object
 int Socket::sendPacket(Packet pkt, int socketfd){
     int n = send(socketfd, &pkt, sizeof(pkt), MSG_NOSIGNAL); 
-    if (n < 0) 
+    if (n < 0) {
         std::cout << "ERROR writing to socket: " << this->socketfd << std::endl;
+        std::cout << "Connection closed." << std::endl;
+    }
     return n;
 }
 

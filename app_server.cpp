@@ -50,14 +50,25 @@ void *readCommandsHandler(void *handlerArgs){
 void *sendNotificationsHandler(void *handlerArgs){
     struct communiction_handler_args *args = (struct communiction_handler_args *)handlerArgs;
     Socket connectedSocket = Socket(args->connectedSocket);
-    bool connectionAlive;
+    vector<notification> notifications;
+    Packet notificationPacket;
+    int n;
 
     server.retrieve_notifications_from_offline_period(args->user, args->client_address);
 
     while(1) {
-        connectionAlive = server.read_notifications(args->client_address, connectedSocket);
-        if (!connectionAlive){
-            return;
+        notifications = server.read_notifications(args->client_address);
+
+        for(auto it = std::begin(notifications); it != std::end(notifications); ++it) {
+            
+            notificationPacket = Packet(NOTIFICATION_PKT, (*it).timestamp, 
+                                        (*it).body.c_str(), (*it).author.c_str());
+
+            n = connectedSocket.sendPacket(notificationPacket);
+            if (n<0){
+                server.close_session(args->user, args->client_address);
+                return;
+            }
         }
     }
 }
@@ -73,6 +84,5 @@ int main(){
 		socket.connectNewClient(&threadConnections[i], communicationHandler, server);
 		i++;
 	}
-
 	return 0; 
 }
