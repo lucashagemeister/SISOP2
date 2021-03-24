@@ -16,8 +16,6 @@ void *communicationHandlerExample(void *handlerArgs){
 	struct communiction_handler_args *args = (struct communiction_handler_args *)handlerArgs;
 	Socket connectedSocket = Socket(args->connectedSocket);
 
-	std::cout << "Handler recebeu porta: " << connectedSocket.getSocketfd() << "\n\n";
-
 	int i=100;
 	while (1){
 		
@@ -29,14 +27,19 @@ void *communicationHandlerExample(void *handlerArgs){
 			<< "\nPacket seqn: " << rpkt->getSeqn()
 			<< "\nPacket timestamp: " << rpkt->getTimestamp()
 			<< "\nPayload len: " << rpkt->getLength() << "\n\n";
+		} else {
+			return 0;
 		}
 
 		Packet newPacket = Packet(i, "I got your message ;)");
-		connectedSocket.sendPacket(newPacket);
+		int n = connectedSocket.sendPacket(newPacket);
+		if (n < 0) {
+			return 0;
+		}
 
 		i++;
-		sleep(5);
 	}
+	return 0;
 }
 
 

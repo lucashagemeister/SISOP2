@@ -24,6 +24,7 @@ int Socket::getSocketfd(){
 }
 
 
+// returns a pointer to the read Packet object or NULL if connection was closed
 Packet* Socket::readPacket(){
 
     Packet* pkt = new Packet();
@@ -31,21 +32,26 @@ Packet* Socket::readPacket(){
     int n = read(this->socketfd, pkt, sizeof(Packet));
 
     if (n<0){
-        std::cout << "ERROR reading from socket" << std::endl;
-        exit(1);
+        std::cout << "ERROR reading from socket: " << this->socketfd  << std::endl;
+        return NULL;
     }
+    else if(n == 0){
+        std::cout << "Connection closed." << std::endl;
+        return NULL;
+    }
+
     return pkt;
 }
 
 
+// return the n value gotten from send primitive
 int Socket::sendPacket(Packet pkt){
     
-    int n = write(this->socketfd, &pkt, sizeof(pkt)); 
+    int n = send(this->socketfd, &pkt, sizeof(pkt), MSG_NOSIGNAL); 
 
-    if (n < 0) {
-        std::cout << "ERROR writing to socket: " << this->socketfd << std::endl ;
-        exit(1);
-    }
+    if (n < 0) 
+        std::cout << "ERROR writing to socket: " << this->socketfd << std::endl;
+        
     return n;
 }
 
@@ -102,11 +108,11 @@ void ServerSocket::connectNewClient(pthread_t *threadID, void *(*communicationHa
     // Accepting connection to start communicating
     clilen = sizeof(struct sockaddr_in);
     if ((*newsockfd = accept(this->getSocketfd(), (struct sockaddr *) &cli_addr, &clilen)) == -1) {
-        printf("ERROR on accept");
+        printf("ERROR on accepting");
         exit(1);
     }
 
-    std::cout << "TRYING TO CONNECT IN: " << *newsockfd << "\n\n";
+    std::cout << "New connection estabilished on socket: " << *newsockfd << "\n\n";
 
     // Verify if there are free sessions available
     // TO-DO

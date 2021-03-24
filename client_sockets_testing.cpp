@@ -26,6 +26,7 @@ int main() {
 	{
 		socket.sendPacket(pkt);
 
+		/*
 		Packet* rpkt = socket.readPacket();
 		std::cout << "Got server message: " << rpkt->getPayload() << endl;
 		std::cout << "Packet type: " << rpkt->getType()
@@ -33,7 +34,8 @@ int main() {
 		<< "\nPacket timestamp: " << rpkt->getTimestamp()
 		<< "\nPayload len: " << rpkt->getLength() << endl;
 
-		std::cout << "\n\n";
+		std::cout << "\n\n";*/
+		sleep(5);
 	}
 
 	return 0;
