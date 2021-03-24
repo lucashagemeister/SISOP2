@@ -69,7 +69,7 @@ private:
     map< string, vector<string> > followers;
     vector<notification> active_notifications;
 
-    void send(uint32_t notification_id, list<string> followers);
+    void assign_notification_to_active_sessions(uint32_t notification_id, list<string> followers);
     void retrieve_notifications_from_offline_period(string user, host_address addr);
     void close_session(string user, host_address address);
     bool user_exists(string user);

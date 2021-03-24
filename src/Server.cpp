@@ -86,7 +86,7 @@ void Server::create_notification(string user, string body, time_t timestamp)
 }
 
 // call this function after new notification is created
-void Server::send(uint32_t notification_id, list<string> followers) 
+void Server::assign_notification_to_active_sessions(uint32_t notification_id, list<string> followers) 
 {
     for (auto user : followers)
     {
