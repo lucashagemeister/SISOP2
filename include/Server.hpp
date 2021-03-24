@@ -27,6 +27,7 @@ public:
     
 private: 
     pthread_mutex_t mutex_session = PTHREAD_MUTEX_INITIALIZER;
+    pthread_mutex_t follow_mutex = PTHREAD_MUTEX_INITIALIZER;
     pthread_mutex_t follower_count_mutex = PTHREAD_MUTEX_INITIALIZER;
 
     pthread_cond_t 	cond_notification_empty, cond_notification_full;

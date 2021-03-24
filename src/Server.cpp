@@ -166,5 +166,12 @@ void Server::close_session(string user, host_address address)
 
 void Server::follow_user(string user, string user_to_follow)
 {
-    followers[user_to_follow].push_back(user);
+    pthread_mutex_lock(&follow_mutex);
+
+    if (find(followers[user_to_follow].begin(), followers[user_to_follow].end(), user) == followers[user_to_follow].end())
+    {
+        followers[user_to_follow].push_back(user);
+    }
+
+    pthread_mutex_unlock(&follow_mutex);
 }
