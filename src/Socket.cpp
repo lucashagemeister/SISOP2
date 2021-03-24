@@ -145,8 +145,6 @@ void ServerSocket::connectNewClient(pthread_t *threadID, void *(*communicationHa
         return; // destructor automatically closes the socket
     }
 
-
-    // CHANGE THIS TO ITS SPECIFIC NEEDS
     // Build args
     communiction_handler_args *args = (communiction_handler_args *) calloc(1, sizeof(communiction_handler_args));
     args->client_address = client_address;

@@ -31,10 +31,9 @@ void *readCommandsHandler(void *handlerArgs){
 
         Packet* receivedPacket = connectedSocket.readPacket();
         if (receivedPacket == NULL){  // connection closed
-            //call function that closes session
+            server.close_session(args->user, args->client_address);
             return;
         }
-        
 
         switch(receivedPacket->getType()){
 
@@ -43,22 +42,18 @@ void *readCommandsHandler(void *handlerArgs){
                 break;
 
             case COMMAND_SEND_PKT:
-                
+                server.create_notification(args->user, receivedPacket->getPayload(), receivedPacket->getTimestamp());
                 break;
 
             default:
                 break;
         }
-
-
-
     }
-
 }
 
 
 void *sendNotificationsHandler(void *handlerArgs){
-    
+    //não esquecer de ler as offline   
 }
 
 
