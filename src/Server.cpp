@@ -1,4 +1,4 @@
-#include "../include/Server.hpp"
+#include "./Server.hpp"
 #include <iostream>
 #include <algorithm>
 #include <semaphore.h>
@@ -8,6 +8,10 @@ using namespace std;
 
 Server::Server()
 {
+    mutex_session = PTHREAD_MUTEX_INITIALIZER;
+    follow_mutex = PTHREAD_MUTEX_INITIALIZER;
+    follower_count_mutex = PTHREAD_MUTEX_INITIALIZER;
+
     pthread_cond_init(&cond_notification_empty, NULL);
     pthread_cond_init(&cond_notification_full, NULL);
     pthread_mutex_init(&mutex_notification_sender, NULL);
@@ -18,6 +22,10 @@ Server::Server(host_address address)
     this->notification_id_counter = 0;
 	this->ip = address.ipv4;
 	this->port = address.port;
+
+    mutex_session = PTHREAD_MUTEX_INITIALIZER;
+    follow_mutex = PTHREAD_MUTEX_INITIALIZER;
+    follower_count_mutex = PTHREAD_MUTEX_INITIALIZER;
 
     pthread_cond_init(&cond_notification_empty, NULL);
     pthread_cond_init(&cond_notification_full, NULL);
@@ -62,7 +70,7 @@ void Server::create_notification(string user, string body, time_t timestamp)
 
     uint16_t pending_users{0};
     for (auto follower : followers[user])
-    {
+    {        
         pthread_mutex_lock(&mutex_notification_sender);
         users_unread_notifications[follower].push_back(notification_id_counter);
         pthread_mutex_unlock(&mutex_notification_sender);
@@ -70,7 +78,7 @@ void Server::create_notification(string user, string body, time_t timestamp)
         pending_users++;
     }
 
-    __notification notif(notification_id_counter, timestamp, body, body.length(), pending_users);
+    notification notif(notification_id_counter, timestamp, body, body.length(), pending_users);
     active_notifications.push_back(notif);
     notification_id_counter += 1;
 
@@ -80,7 +88,7 @@ void Server::create_notification(string user, string body, time_t timestamp)
 // call this function after new notification is created
 void Server::send(uint32_t notification_id, list<string> followers) 
 {
-    for(string user : followers) 
+    for (auto user : followers)
     {
         if(user_is_active(user)) 
         {
