@@ -69,14 +69,13 @@ private:
     map< string, list< host_address > > sessions; // {user, [<ip, port>]}
     map< host_address, priority_queue< uint32_t > > active_users_pending_notifications; // {<ip, port>, [notification]]}
     map< string, list< uint32_t > > users_unread_notifications; // {user, [notification]]}
-    map< string, vector<string> > followers;
+    map< string, list<string> > followers;
     vector<notification> active_notifications;
 
-    void assign_notification_to_active_sessions(uint32_t notification_id, list<string> followers);
     void retrieve_notifications_from_offline_period(string user, host_address addr);
     bool user_exists(string user);
     bool user_is_active(string user);
-    void send(uint32_t notification_id, list<string> followers);
+    void assign_notification_to_active_sessions(uint32_t notification_id, list<string> followers);
     void read_notifications(host_address addr);
 
 };

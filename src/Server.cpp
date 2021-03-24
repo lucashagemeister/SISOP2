@@ -43,7 +43,7 @@ bool Server::try_to_start_session(string user, host_address address)
         sem_init(&num_sessions, 0, 2);
         user_sessions_semaphore.insert({user, num_sessions}); // user is created with 2 sessions available
         sessions.insert({user, list<host_address>()});
-        followers.insert(pair<string, vector<string>>(user, vector<string>()));
+        followers.insert(pair<string, list<string>>(user, list<string>()));
         users_unread_notifications.insert({user, list<uint32_t>()});
     } 
     
@@ -80,6 +80,7 @@ void Server::create_notification(string user, string body, time_t timestamp)
 
     notification notif(notification_id_counter, timestamp, body, body.length(), pending_users);
     active_notifications.push_back(notif);
+    assign_notification_to_active_sessions(notification_id_counter, followers[user]);
     notification_id_counter += 1;
 
     pthread_mutex_unlock(&follower_count_mutex);
