@@ -9,13 +9,8 @@ Server server = Server();
 
 void *communicationHandler(void *handlerArgs){
 
-
     pthread_t readCommandsT;
     pthread_t sendNotificationsT;
-
-	struct communiction_handler_args *args = (struct communiction_handler_args *)handlerArgs;
-	Socket connectedSocket = Socket(args->connectedSocket);
-
 
     pthread_create(&readCommandsT, NULL, readCommandsHandler, handlerArgs);
     pthread_create(&sendNotificationsT, NULL, sendNotificationsHandler, handlerArgs);
@@ -53,7 +48,18 @@ void *readCommandsHandler(void *handlerArgs){
 
 
 void *sendNotificationsHandler(void *handlerArgs){
-    //não esquecer de ler as offline   
+    struct communiction_handler_args *args = (struct communiction_handler_args *)handlerArgs;
+    Socket connectedSocket = Socket(args->connectedSocket);
+    bool connectionAlive;
+
+    server.retrieve_notifications_from_offline_period(args->user, args->client_address);
+
+    while(1) {
+        connectionAlive = server.read_notifications(args->client_address, connectedSocket);
+        if (!connectionAlive){
+            return;
+        }
+    }
 }
 
 
@@ -69,5 +75,4 @@ int main(){
 	}
 
 	return 0; 
-
 }

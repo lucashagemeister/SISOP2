@@ -16,6 +16,10 @@ enum{
 #define MAX_PAYLOAD_LENGTH 256
 #endif
 
+#ifndef MAX_AUTHOR_LENGTH
+#define MAX_AUTHOR_LENGTH 18
+#endif
+
 #ifndef MAX_NOTIFICATION_LENGTH
 #define MAX_NOTIFICATION_LENGTH 128
 #endif
@@ -26,6 +30,10 @@ enum{
 
 #ifndef CR
 #define CR 13
+#endif 
+
+#ifndef LF
+#define LF 12
 #endif 
 
 #ifndef SERVER_ADDR

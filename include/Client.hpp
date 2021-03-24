@@ -3,6 +3,7 @@
 #include <string.h>
 #include <iostream>
 #include <pthread.h>
+#include "Socket.hpp"
 
 #define MAX_MESSAGE_SIZE 128
 #define FALSE 0

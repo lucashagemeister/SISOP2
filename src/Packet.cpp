@@ -36,6 +36,30 @@ Packet::Packet(uint16_t type, time_t timestamp, char const *payload){
 }
 
 
+Packet::Packet(uint16_t type, time_t timestamp, char const *payload, char const *author){
+
+    uint16_t payloadLength = strlen(payload);
+    if (payloadLength > MAX_PAYLOAD_LENGTH) {
+        std::cout << "ERROR payload exceeded maximum length\n" << payload << std::endl;
+        exit(1);
+    } 
+
+    uint16_t authorLength = strlen(author);
+    if (payloadLength > MAX_AUTHOR_LENGTH) {
+        std::cout << "ERROR author exceeded maximum length\n" << payload << std::endl;
+        exit(1);
+    } 
+
+    this->type = type;
+    this->seqn = 0;
+    this->length = payloadLength;
+    this->timestamp = timestamp;
+    strcpy(this->payload, payload);
+    strcpy(this->author, author);
+}
+
+
+
 // Useful when it receives a header while reading socket
 Packet::Packet(uint16_t type, uint16_t seqn, time_t timestamp){
     this->type = type;
@@ -58,6 +82,9 @@ time_t Packet::getTimestamp(){
 }
 char* Packet::getPayload(){
     return this->payload;
+}
+char* Packet::getAuthor(){
+    return this->author;
 }
 
 

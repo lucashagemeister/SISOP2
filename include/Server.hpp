@@ -7,6 +7,7 @@
 #include <map>
 #include <vector>
 #include <queue>
+#include "Socket.hpp"
 using namespace std;
 
 typedef struct address {
@@ -53,7 +54,10 @@ public:
     void follow_user(string user, string user_to_follow);
     void create_notification(string user, string body, time_t timestamp);
     void close_session(string user, host_address address);
-    
+    void retrieve_notifications_from_offline_period(string user, host_address addr);
+    bool read_notifications(host_address addr, Socket socket);
+
+
     
 private: 
     pthread_mutex_t mutex_session;
@@ -72,10 +76,9 @@ private:
     map< string, list<string> > followers;
     vector<notification> active_notifications;
 
-    void retrieve_notifications_from_offline_period(string user, host_address addr);
+    
     bool user_exists(string user);
     bool user_is_active(string user);
     void assign_notification_to_active_sessions(uint32_t notification_id, list<string> followers);
-    void read_notifications(host_address addr);
 
 };

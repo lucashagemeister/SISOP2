@@ -133,8 +133,10 @@ void Server::retrieve_notifications_from_offline_period(string user, host_addres
 }
 
 // call this function on consumer thread that will feed the user with its notifications
-void Server::read_notifications(host_address addr) 
+bool Server::read_notifications(host_address addr, Socket socket) 
 {
+    int n;
+
     pthread_mutex_lock(&mutex_notification_sender);
     // sleep while user doesn't have notifications to read
     while (active_users_pending_notifications[addr].empty()) { 
@@ -148,7 +150,17 @@ void Server::read_notifications(host_address addr)
         {
             if(notif.id == notification_id)
             {
-                // socket.send(notif)
+                
+                Packet packetToSend = Packet(NOTIFICATION_PKT, notif.timestamp, notif.body.c_str());
+                n = socket.sendPacket(packetToSend);
+                if (n < 0){
+                    std::cout << "Connection closed." << std::endl;
+                    
+                    pthread_cond_signal(&cond_notification_empty);
+                    pthread_mutex_lock(&mutex_notification_sender);
+                    return false;
+                }
+
                 break;
             }
         }
@@ -157,6 +169,7 @@ void Server::read_notifications(host_address addr)
     }
     pthread_cond_signal(&cond_notification_empty);
     pthread_mutex_lock(&mutex_notification_sender);
+    return true;
 }
 
 // call this function when client presses ctrl+c or ctrl+d

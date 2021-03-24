@@ -1,5 +1,5 @@
 #include "../include/Client.hpp"
-#include "../include/Notification.hpp"
+//#include "../include/Notification.hpp"
 #include "../include/defines.hpp"
 #include <list>
 
@@ -107,7 +107,7 @@ void Client::do_threadSender(void* arg){
 void Client::do_threadReceiver(void* arg){
 
     pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
-    Notification* apiTransmission;
+    Packet* apiTransmission;
 
     while (TRUE) {
         pthread_mutex_lock(&mutex);
