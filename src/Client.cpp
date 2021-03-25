@@ -5,10 +5,11 @@
 
 using namespace std;
 
+
+
 Client::Client(){
 
     // stabilishing connection 
-
 
 }
 
@@ -83,7 +84,8 @@ void executeFollowCommand() {
 }
 
 
-void Client::do_threadSender(void* arg){
+void *Client::do_threadSender(void* arg){
+    Client *client = (Client*) arg;
     pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
     char c; 
     std::string command;
@@ -93,18 +95,20 @@ void Client::do_threadSender(void* arg){
 	    
         //INICIO DA SECAO CRITICA
 	cout << "INICIANDO SEND... \n" << endl;
-        executeSendCommand();
-        cleanBuffer();
+        client->executeSendCommand();
+        client->cleanBuffer();
         cout << "INICIANDO FOLLOW... \n" << endl;
-        executeFollowCommand();
-        cleanBuffer();
+        client->executeFollowCommand();
+        client->cleanBuffer();
 	    
         //FIM DA SECAOO CRITICA
         pthread_mutex_unlock(&mutex);
     }
 }
 
-void Client::do_threadReceiver(void* arg){
+void *Client::do_threadReceiver(void* arg){
+
+    Client *client = (Client*) arg; 
 
     pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
     Packet* apiTransmission;
@@ -122,4 +126,3 @@ void Client::do_threadReceiver(void* arg){
         pthread_mutex_unlock(&mutex);
     }
 }
-

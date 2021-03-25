@@ -9,6 +9,7 @@
 #define FALSE 0
 #define TRUE  1
 
+
 class Client{
 public:
     Client();
@@ -16,13 +17,15 @@ public:
     char* clientName; 
     char* listOfFollowers;
     int numberOfAccess;
+    static void *do_threadSender(void* arg);
+	static void *do_threadReceiver(void* arg);
+    void startThreads();
 
  private:
-	void do_threadSender(void* arg);
-	void do_threadReceiver(void* arg);
 	void cleanBuffer(void);
 	void executeSendCommand();
 	void executeFollowCommand();
 
 };
+
 
