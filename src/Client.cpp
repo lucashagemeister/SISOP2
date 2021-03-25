@@ -163,18 +163,22 @@ void *Client::do_threadReceiver(void* arg){
     Client *client = (Client*) arg; 
 
     pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
-    Packet* apiTransmission;
+    Packet* readPacket;
 
     while (TRUE) {
-        pthread_mutex_lock(&mutex);
-        //INICIO DA SECAO CRITICA
-        //apiTransmission = classColombelli.getNewNotification();
-        if (apiTransmission != NULL) {
-            cout << "Tweet from" << apiTransmission->getAuthor() << "at" << apiTransmission->getTimestamp() << ":" << endl;
-            //cout << "%s", apiTransmission._string << endl;
-            apiTransmission = NULL;	
-        }
+        
+        readPacket = client->socket.readPacket();
+        
+        if (readPacket != NULL) {
+            cout << "Tweet from" << readPacket->getAuthor() << "at" << readPacket->getTimestamp() << ":" << endl;
+            cout << readPacket->getPayload() << "\n\n";
+            readPacket = NULL;	
+        } else 
+            exit(1);
 		
+        
+    pthread_mutex_lock(&mutex);
+    //INICIO DA SECAO CRITICA
         std::future<std::string> futureThread = std::async(std::launch::async, skipReceiverMode);
         std::chrono::system_clock::time_point five_seconds_passed = std::chrono::system_clock::now() + std::chrono::seconds(5);
         std::future_status status = futureThread.wait_until(five_seconds_passed);
