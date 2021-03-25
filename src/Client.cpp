@@ -90,18 +90,29 @@ void *Client::do_threadSender(void* arg){
     char c; 
     std::string command;
 	
-    while (TRUE) {  //PROVISORIO, SUBSTITUIR POR COMANDOS (exemplo: se command = "SEND", chamar executeSendCommand). Estou tentando, mas ainda tá dando problema com getchar
+    while (TRUE) {  
         pthread_mutex_lock(&mutex);
 	    
-        //INICIO DA SECAO CRITICA
-	cout << "INICIANDO SEND... \n" << endl;
-        client->executeSendCommand();
-        client->cleanBuffer();
-        cout << "INICIANDO FOLLOW... \n" << endl;
-        client->executeFollowCommand();
-        client->cleanBuffer();
+        //INICIO DA SECAO CRITICA	    
+	do {
+            c = getchar();
+            command = command + c;
+        } while (c != LF && c!= ' ');
+        command.pop_back(); //remover o LF do final do comando
 	    
-        //FIM DA SECAOO CRITICA
+	if (command.compare("FOLLOW") == 0) {
+            executeFollowCommand();
+            cleanBuffer();
+        }
+        else if (command.compare("SEND") == 0) {
+            executeSendCommand();
+            cleanBuffer();
+        }
+        else {
+            cout << "Command not found! Please try again." << endl;
+        }	  	    
+        //FIM DA SECAO CRITICA
+	    
         pthread_mutex_unlock(&mutex);
     }
 }
