@@ -1,6 +1,8 @@
 #include "../include/Client.hpp"
 #include "../include/defines.hpp"
 #include <list>
+#include <future>
+#include <chrono>
 
 using namespace std;
 
@@ -46,6 +48,14 @@ void Client::cleanBuffer(void) {
     char c;
     while ((c = getchar()) != '\n' && c != EOF);
 
+}
+
+std::string skipReceiverMode()
+{
+   // std::cout << "VOCE TEM 5 SEGUNDOS PARA DAR ENTER E SAIR DO RECEIVER\n";
+    std::string inputToSkipReceiverMode;
+    std::getline(std::cin, inputToSkipReceiverMode);
+    return inputToSkipReceiverMode;
 }
 
 void Client::executeSendCommand() {
@@ -134,6 +144,7 @@ void *Client::do_threadSender(void* arg){
             client->executeFollowCommand();
             client->cleanBuffer();
         }
+	    
         else if (command.compare("SEND") == 0) {
             client->executeSendCommand();
             client->cleanBuffer();
@@ -161,9 +172,23 @@ void *Client::do_threadReceiver(void* arg){
         if (apiTransmission != NULL) {
             cout << "Tweet from" << apiTransmission->getAuthor() << "at" << apiTransmission->getTimestamp() << ":" << endl;
             //cout << "%s", apiTransmission._string << endl;
-            apiTransmission = NULL;
+            apiTransmission = NULL;	
         }
+		
+        std::future<std::string> futureThread = std::async(std::launch::async, skipReceiverMode);
+        std::chrono::system_clock::time_point five_seconds_passed = std::chrono::system_clock::now() + std::chrono::seconds(5);
+        std::future_status status = futureThread.wait_until(five_seconds_passed);
+	
+	if (status == std::future_status::ready){
+        	auto  result = futureThread.get();
+                //std::cout << " VOCE ESTA NO MODO SENDER \n";    
+	        pthread_mutex_unlock(&mutex); //liberar mutex para sender //FIM DA SECAO CRITICA
+        }
+	else {
+            	//std::cout << "VOCE CONTINUA NO MODO RECEIVER. \n";
+		//NAO FAZ NADA E CONTINUA NESTE WHILE, NESTE RECEIVER    
+        }	    
         //FIM DA SECAO CRITICA
-        pthread_mutex_unlock(&mutex);
+       //pthread_mutex_unlock(&mutex);
     }
 }
