@@ -41,14 +41,14 @@ void Client::establishConnection(){
 }
 
 
-void cleanBuffer(void) {
+void Client::cleanBuffer(void) {
 
     char c;
     while ((c = getchar()) != '\n' && c != EOF);
 
 }
 
-void executeSendCommand() {
+void Client::executeSendCommand() {
     list<string> message; //mensagem vai ser uma lista de linhas
     string line;
     char c;
@@ -70,14 +70,22 @@ void executeSendCommand() {
             line.pop_back(); //remover o "@" da mensagem, pois ele eh soh um sinalizador de fim de mensagem
             message.push_back(line);	//pegar última linha da mensagem                
         }
-        // enviar message (aqui é uma notificação completa)
-        //!!! COLOMBELLI, ESTE FOR SÓ IMPRIME MESSAGE PARA VER SE ESTÁ FUNCIONANDO, MAS TEMOS DE TROCAR PARA ALGO QUE FAÇA COM QUE MESSAGE SEJA ENVIADO AO SOCKET. COMO FAZEMOS?
-    std::cout << "\nSent Message" << endl;
-    for (auto v : message)
-        std::cout << v << "\n";
+
+        // Implode list of strings into single string
+        string completeNotification; 
+        for(const auto &line : message) { 
+            completeNotification += line + "\n"; 
+        }
+        
+        int n = this->socket.sendPacket(Packet(COMMAND_SEND_PKT, completeNotification.c_str()));
+        if (n<0){
+            cout << "Connection lost. Exiting..." << "\n\n";
+            exit(1);
+        }
 }
 
-void executeFollowCommand() {
+
+void Client::executeFollowCommand() {
     string person;
     char c;
     int characters = 0;
@@ -99,10 +107,9 @@ void executeFollowCommand() {
         std::cout << "\nInvalid username! A username starts with '@' (@username)." << endl;
     }
 
-    // seguir a person socket.send()
-    //!!! COLOMBELLI, ESTE SÓ IMPRIME QUEM A PESSOA QUER SEGUIR PARA VER SE ESTÁ FUNCIONANDO, MAS TEMOS DE TROCAR PARA ALGO QUE FAÇA COM QUE PERSON SEJA ENVIADO AO SOCKET. COMO FAZEMOS?
     if (flagSpaces == 0 && person[0] == '@') {
-        std::cout << "Now you're following " << person << endl;
+        // Send only the username without @
+        this->socket.sendPacket(Packet(COMMAND_FOLLOW_PKT, person.substr(1).c_str()));
     }  
 }
 
