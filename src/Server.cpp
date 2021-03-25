@@ -1,4 +1,4 @@
-#include "./Server.hpp"
+#include "../include/Server.hpp"
 #include <iostream>
 #include <algorithm>
 #include <semaphore.h>

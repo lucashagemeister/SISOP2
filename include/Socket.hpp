@@ -11,7 +11,8 @@
 #include <iostream>
 #include <pthread.h>
 #include "Packet.hpp"
-#include "Server.hpp"
+#include "./Server.hpp"
+using namespace std;
 
 class Socket
 {
