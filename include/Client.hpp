@@ -12,11 +12,13 @@
 
 class Client{
 public:
-    Client();
-    Client(char *clientName, char *listOfFollowers, int numberOfAccess);
-    char* clientName; 
-    char* listOfFollowers;
-    int numberOfAccess;
+    
+    string user;
+    int serverPort;
+    string serverAdress;
+    ClientSocket socket;
+
+    Client(string user, int serverPort, string serverAddress);
     static void *do_threadSender(void* arg);
 	static void *do_threadReceiver(void* arg);
     void startThreads();
@@ -25,6 +27,7 @@ public:
 	void cleanBuffer(void);
 	void executeSendCommand();
 	void executeFollowCommand();
+    void establishConnection();
 
 };
 

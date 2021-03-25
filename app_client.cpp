@@ -2,11 +2,15 @@
 #include <pthread.h>  
 
 
-int main() {
+int main(int argc, char *argv[]) {
 
     Client *client = (Client *) calloc(1, sizeof(Client));
     pthread_t threadSender;
     pthread_t threadReceiver;
+
+    string perfil = argv[0];
+    string serverAddress = argv[1];
+    int port = (int) argv[2];
 
     client = new Client();
 

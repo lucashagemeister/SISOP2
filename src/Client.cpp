@@ -1,22 +1,22 @@
 #include "../include/Client.hpp"
-//#include "../include/Notification.hpp"
 #include "../include/defines.hpp"
 #include <list>
 
 using namespace std;
 
+Client::Client(string user, int serverPort, string serverAddress){
 
-
-Client::Client(){
-
-    // stabilishing connection 
-
+    this->serverPort = serverPort;
+    this->serverAdress = serverAdress;
+    this->user = user;
+    this->establishConnection();
 }
 
-Client::Client(char *clientName, char *listOfFollowers, int numberOfAccess){
-	strcpy(this->clientName, clientName);
-	strcpy(this->listOfFollowers, listOfFollowers);
-	this->numberOfAccess = numberOfAccess;
+void Client::establishConnection(){
+
+    ClientSocket socket = ClientSocket();
+    
+
 }
 
 
@@ -49,6 +49,7 @@ void executeSendCommand() {
             line.pop_back(); //remover o "@" da mensagem, pois ele eh soh um sinalizador de fim de mensagem
             message.push_back(line);	//pegar última linha da mensagem                
         }
+        // enviar message (aqui é uma notificação completa)
         //!!! COLOMBELLI, ESTE FOR SÓ IMPRIME MESSAGE PARA VER SE ESTÁ FUNCIONANDO, MAS TEMOS DE TROCAR PARA ALGO QUE FAÇA COM QUE MESSAGE SEJA ENVIADO AO SOCKET. COMO FAZEMOS?
     std::cout << "\nSent Message" << endl;
     for (auto v : message)
@@ -77,6 +78,7 @@ void executeFollowCommand() {
         std::cout << "\nInvalid username! A username starts with '@' (@username)." << endl;
     }
 
+    // seguir a person socket.send()
     //!!! COLOMBELLI, ESTE SÓ IMPRIME QUEM A PESSOA QUER SEGUIR PARA VER SE ESTÁ FUNCIONANDO, MAS TEMOS DE TROCAR PARA ALGO QUE FAÇA COM QUE PERSON SEJA ENVIADO AO SOCKET. COMO FAZEMOS?
     if (flagSpaces == 0 && person[0] == '@') {
         std::cout << "Now you're following " << person << endl;
@@ -94,14 +96,14 @@ void *Client::do_threadSender(void* arg){
         pthread_mutex_lock(&mutex);
 	    
         //INICIO DA SECAO CRITICA
-	cout << "INICIANDO SEND... \n" << endl;
+        cout << "INICIANDO SEND... \n" << endl;
         client->executeSendCommand();
         client->cleanBuffer();
         cout << "INICIANDO FOLLOW... \n" << endl;
         client->executeFollowCommand();
         client->cleanBuffer();
 	    
-        //FIM DA SECAOO CRITICA
+        //FIM DA SECAO CRITICA
         pthread_mutex_unlock(&mutex);
     }
 }
@@ -126,3 +128,4 @@ void *Client::do_threadReceiver(void* arg){
         pthread_mutex_unlock(&mutex);
     }
 }
+

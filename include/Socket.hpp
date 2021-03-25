@@ -33,6 +33,7 @@ class Socket
 class ClientSocket : public Socket {
 	public:
 		void connectToServer();
+		void connectToServer(string serverAddress, int serverPort);
 };
 
 
