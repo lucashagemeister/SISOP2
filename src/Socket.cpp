@@ -65,14 +65,6 @@ int Socket::sendPacket(Packet pkt, int socketfd){
 
 
 
-ServerSocket::ServerSocket() : Socket(){
-    
-    this->serv_addr.sin_family = AF_INET;
-	this->serv_addr.sin_port = htons(PORT);
-	this->serv_addr.sin_addr.s_addr = INADDR_ANY;
-	bzero(&(this->serv_addr.sin_zero), 8);
-
-}
 
 void ClientSocket::connectToServer(){
     struct sockaddr_in serv_addr;
@@ -110,71 +102,3 @@ void ClientSocket::connectToServer(string serverAddress, int serverPort){
         
 }
 
-
-void ServerSocket::bindAndListen(){
-    
-    if (bind(this->getSocketfd(), (struct sockaddr *) &this->serv_addr, sizeof(this->serv_addr)) < 0) {
-		printf("ERROR on binding");
-        exit(1);
-    }
-	
-	listen(this->getSocketfd(), MAX_TCP_CONNECTIONS);
-	std::cout << "Listening...\n";
-}
-
-
-void ServerSocket::connectNewClient(pthread_t *threadID, void *(*communicationHandler)(void*), Server server){
-
-    int *newsockfd = (int *) calloc(1, sizeof(int));
-	socklen_t clilen;
-	struct sockaddr_in cli_addr;
-    host_address client_address;
-    string user;
-    bool sessionAvailable;
-    Socket newClientSocket;
-    Packet sessionResultPkt;
-
-    
-
-    // Accepting connection to start communicating
-    clilen = sizeof(struct sockaddr_in);
-    if ((*newsockfd = accept(this->getSocketfd(), (struct sockaddr *) &cli_addr, &clilen)) == -1) {
-        std::cout << "ERROR on accepting client connection" << std::endl;
-        //exit(1);
-        return;
-    }
-
-    std::cout << "New connection estabilished on socket: " << *newsockfd << "\n\n";
-    newClientSocket = Socket(*newsockfd);
-    
-    // Verify if there are free sessions available
-    // read client username from socket in 'user' var
-    Packet *userPacket = newClientSocket.readPacket();
-    if (userPacket == NULL){
-        std::cout << "Unable to read user information. Closing connection." << std::endl;
-        return;     // destructor automatically closes the socket
-    } else 
-        user = userPacket->getPayload();
-    
-
-    client_address.ipv4 = inet_ntoa(cli_addr.sin_addr);
-    client_address.port = ntohs(cli_addr.sin_port);
-    sessionAvailable = server.try_to_start_session(user, client_address);
-
-    if (!sessionAvailable){
-        sessionResultPkt = Packet(SESSION_OPEN_FAILED, "Unable to connect to server: no sessions available.");
-        newClientSocket.sendPacket(sessionResultPkt);
-        return; // destructor automatically closes the socket
-    } else{
-        sessionResultPkt = Packet(SESSION_OPEN_SUCCEDED, "Connection succeded! Session established.");
-        newClientSocket.sendPacket(sessionResultPkt);
-    }
-
-    // Build args
-    communiction_handler_args *args = (communiction_handler_args *) calloc(1, sizeof(communiction_handler_args));
-    args->client_address = client_address;
-    args->connectedSocket = *newsockfd;
-    args->user = user;
-
-    pthread_create(threadID, NULL, communicationHandler, (void *)args);
-}

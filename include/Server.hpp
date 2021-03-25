@@ -10,19 +10,7 @@
 #include "Socket.hpp"
 using namespace std;
 
-typedef struct address {
-	string ipv4;
-	int port;
 
-    bool operator ==(address other) const {
-		return ipv4 == other.ipv4 && port == other.port;
-	}
-
-    bool operator <(const address& other) const {
-		return port < other.port;
-	}
-    
-} host_address;
 
 typedef struct __notification {
 
@@ -43,6 +31,19 @@ typedef struct __notification {
 
 } notification;
 
+
+class ServerSocket : public Socket {
+	
+	public:
+		struct sockaddr_in serv_addr;
+
+		void bindAndListen();
+		void connectNewClient(pthread_t *threadID, Server server);
+
+		ServerSocket();
+};
+
+
 class Server
 {
 public:
@@ -57,6 +58,11 @@ public:
     void close_session(string user, host_address address);
     void retrieve_notifications_from_offline_period(string user, host_address addr);
     vector<notification> read_notifications(host_address addr);
+
+    static void *communicationHandler(void *handlerArgs);
+    static void *readCommandsHandler(void *handlerArgs);
+    static void *sendNotificationsHandler(void *handlerArgs);
+
 
 
     
@@ -82,4 +88,12 @@ private:
     bool user_is_active(string user);
     void assign_notification_to_active_sessions(uint32_t notification_id, list<string> followers);
 
+};
+
+
+struct communiction_handler_args {
+	int connectedSocket;
+	host_address client_address; 
+	string user;
+    Server server;
 };

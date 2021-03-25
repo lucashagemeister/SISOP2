@@ -11,8 +11,23 @@
 #include <iostream>
 #include <pthread.h>
 #include "Packet.hpp"
-#include "./Server.hpp"
 using namespace std;
+
+typedef struct address {
+	string ipv4;
+	int port;
+
+    bool operator ==(address other) const {
+		return ipv4 == other.ipv4 && port == other.port;
+	}
+
+    bool operator <(const address& other) const {
+		return port < other.port;
+	}
+    
+} host_address;
+
+
 
 class Socket
 {
@@ -35,26 +50,6 @@ class ClientSocket : public Socket {
 	public:
 		void connectToServer();
 		void connectToServer(string serverAddress, int serverPort);
-};
-
-
-class ServerSocket : public Socket {
-	
-	public:
-		struct sockaddr_in serv_addr;
-
-		void bindAndListen();
-		void connectNewClient(pthread_t *threadID,  void *(*communicationHandler)(void*), Server server);
-
-		ServerSocket();
-
-};
-
-
-struct communiction_handler_args {
-	int connectedSocket;
-	host_address client_address; 
-	string user;
 };
 
 

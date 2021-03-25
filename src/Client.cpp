@@ -16,17 +16,17 @@ Client::Client(string user, int serverPort, string serverAddress){
 
 void Client::establishConnection(){
 
-    ClientSocket socket = ClientSocket();
-    this->socket = socket;
-    socket.connectToServer(this->serverAdress, this->serverPort);
+    ClientSocket clientSocket = ClientSocket();
+    this->socket = clientSocket;
+    clientSocket.connectToServer(this->serverAdress, this->serverPort);
 
     // Send user information to initiate session
     Packet userInfoPacket = Packet(USER_INFO_PKT, this->user.c_str());
-    socket.sendPacket(userInfoPacket);
+    clientSocket.sendPacket(userInfoPacket);
 
     // Read server answer
     Packet *serverAnswer;
-    serverAnswer = socket.readPacket();
+    serverAnswer = clientSocket.readPacket();
 
     if (serverAnswer != NULL){
         cout << serverAnswer->getPayload() << "\n\n";

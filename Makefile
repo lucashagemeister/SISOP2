@@ -1,39 +1,23 @@
-CC := g++
+CC=g++ -std=c++11 -c
+CFLAGS=-I./include/
 
-LIB_DIR := lib
-INC_DIR := include
-OBJ_DIR := bin
-SRC_DIR := src
+BIN_FOLDER=./bin/
+SRC_FOLDER=./src/
 
-INC := -I$(INC_DIR)
-LIB := -L$(LIB_DIR)
+DBFLAGS=-ggdb3 -O0
+RELEASEFLAGS=-O2
 
-BUILD_DIR := build
+SRC=$(wildcard $(SRC_FOLDER)*.cpp) $(wildcard ./*.cpp)
+OBJ=$(addprefix $(BIN_FOLDER),$(notdir $(SRC:.cpp=.o)))
+EXE=./app_client.cpp
 
-CFLAGS += -pthread
+all: $(OBJ)
+	g++ -o $(EXE) $(OBJ)
 
-MAIN := $(app_client.cpp)
+./bin/%.o: ./src/%.cpp
+	@mkdir -p $(BIN_FOLDER)
+	$(CC) -o $@ $< $(CFLAGS) $(RELEASEFLAGS)
 
-TARGET_EXE := $(BUILD_DIR)/%
+clean:
+	rm -f $(BIN_FOLDER)*.o
 
-SRC := $(shell find $(SRC_DIR) -name '*.cpp')
-
-OBJ := $(patsubst %.cpp, $(OBJ_DIR)/%.o, $(notdir $(SRC)))
-
-F ?= app_client
-
-$(TARGET_EXE): $(SRC_DIR)/*.cpp $(OBJ)
-		$(CC) -o $@ $^ $(INC) $(CFLAGS) $(LIB)
-
-$(OBJ_DIR)/%.o: ./*cpp
-	$(CC) -o $@ $^ $(SRC) $(INC) $(CFLAGS) $(LIB)
-
-.PHONY: all clean
-
-.DEFAULT_GOAL: all
-
-all: $(TARGET_EXE)
-
-run: $(BUILD_DIR)/$(F)
-
-clean: rm -f $(OBJ_DIR)/*.o $(TARGET_EXE)
