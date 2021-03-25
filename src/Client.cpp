@@ -15,8 +15,29 @@ Client::Client(string user, int serverPort, string serverAddress){
 void Client::establishConnection(){
 
     ClientSocket socket = ClientSocket();
+    this->socket = socket;
+    socket.connectToServer(this->serverAdress, this->serverPort);
 
+    // Send user information to initiate session
+    Packet userInfoPacket = Packet(USER_INFO_PKT, this->user.c_str());
+    socket.sendPacket(userInfoPacket);
 
+    // Read server answer
+    Packet *serverAnswer;
+    serverAnswer = socket.readPacket();
+
+    if (serverAnswer != NULL){
+        cout << serverAnswer->getPayload() << "\n\n";
+
+        if (serverAnswer->getType() == SESSION_OPEN_SUCCEDED)
+            return;
+        if (serverAnswer->getType() == SESSION_OPEN_FAILED)
+            exit(1);
+
+    } else {
+        cout << "Server did not respond, aborting..." << endl;
+        exit(1);
+    }
 }
 
 

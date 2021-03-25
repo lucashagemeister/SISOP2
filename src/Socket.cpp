@@ -123,7 +123,6 @@ void ServerSocket::bindAndListen(){
 }
 
 
-
 void ServerSocket::connectNewClient(pthread_t *threadID, void *(*communicationHandler)(void*), Server server){
 
     int *newsockfd = (int *) calloc(1, sizeof(int));
@@ -132,6 +131,9 @@ void ServerSocket::connectNewClient(pthread_t *threadID, void *(*communicationHa
     host_address client_address;
     string user;
     bool sessionAvailable;
+    Socket newClientSocket;
+    Packet sessionResultPkt;
+
     
 
     // Accepting connection to start communicating
@@ -143,7 +145,7 @@ void ServerSocket::connectNewClient(pthread_t *threadID, void *(*communicationHa
     }
 
     std::cout << "New connection estabilished on socket: " << *newsockfd << "\n\n";
-    Socket newClientSocket = Socket(*newsockfd);
+    newClientSocket = Socket(*newsockfd);
     
     // Verify if there are free sessions available
     // read client username from socket in 'user' var
@@ -158,11 +160,14 @@ void ServerSocket::connectNewClient(pthread_t *threadID, void *(*communicationHa
     client_address.ipv4 = inet_ntoa(cli_addr.sin_addr);
     client_address.port = ntohs(cli_addr.sin_port);
     sessionAvailable = server.try_to_start_session(user, client_address);
-    
+
     if (!sessionAvailable){
-        Packet reportTooManySessionPkt = Packet(MESSAGE_PKT, "Unable to connect to server: no sessions available.");
-        newClientSocket.sendPacket(reportTooManySessionPkt);
+        sessionResultPkt = Packet(SESSION_OPEN_FAILED, "Unable to connect to server: no sessions available.");
+        newClientSocket.sendPacket(sessionResultPkt);
         return; // destructor automatically closes the socket
+    } else{
+        sessionResultPkt = Packet(SESSION_OPEN_SUCCEDED, "Connection succeded! Session established.");
+        newClientSocket.sendPacket(sessionResultPkt);
     }
 
     // Build args

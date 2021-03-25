@@ -4,7 +4,10 @@ enum{
     NOTIFICATION_PKT = 100,     // Notification sent by someone the user is following
     MESSAGE_PKT,                // To communicate command errors and similar stuff 
     COMMAND_FOLLOW_PKT,         // User wants to follow someone
-    COMMAND_SEND_PKT            // User wants to send a notification
+    COMMAND_SEND_PKT,           // User wants to send a notification
+    USER_INFO_PKT,              // Sends a username in the payload
+    SESSION_OPEN_SUCCEDED,      // When server could connect client to a session
+    SESSION_OPEN_FAILED         // When server could not connect client to a session
 };
 #endif
 
