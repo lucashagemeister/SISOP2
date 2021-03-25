@@ -289,7 +289,8 @@ void *Server::communicationHandler(void *handlerArgs){
 
     pthread_create(&readCommandsT, NULL, Server::readCommandsHandler, handlerArgs);
     pthread_create(&sendNotificationsT, NULL, Server::sendNotificationsHandler, handlerArgs);
-    return;
+
+    return NULL;
 }
 
 
@@ -302,7 +303,7 @@ void *Server::readCommandsHandler(void *handlerArgs){
         Packet* receivedPacket = connectedSocket.readPacket();
         if (receivedPacket == NULL){  // connection closed
             args->server.close_session(args->user, args->client_address);
-            return;
+            return NULL;
         }
 
         switch(receivedPacket->getType()){
@@ -342,7 +343,7 @@ void *Server::sendNotificationsHandler(void *handlerArgs){
             n = connectedSocket.sendPacket(notificationPacket);
             if (n<0){
                 args->server.close_session(args->user, args->client_address);
-                return;
+                return NULL;
             }
         }
     }

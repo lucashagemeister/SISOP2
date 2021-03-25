@@ -32,16 +32,7 @@ typedef struct __notification {
 } notification;
 
 
-class ServerSocket : public Socket {
-	
-	public:
-		struct sockaddr_in serv_addr;
 
-		void bindAndListen();
-		void connectNewClient(pthread_t *threadID, Server server);
-
-		ServerSocket();
-};
 
 
 class Server
@@ -96,4 +87,15 @@ struct communiction_handler_args {
 	host_address client_address; 
 	string user;
     Server server;
+};
+
+class ServerSocket : public Socket {
+	
+	public:
+		struct sockaddr_in serv_addr;
+
+		void bindAndListen();
+		void connectNewClient(pthread_t *threadID, Server server);
+
+		ServerSocket();
 };

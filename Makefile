@@ -1,5 +1,5 @@
 CC=g++ -std=c++11 -c
-CFLAGS=-I./include/
+CFLAGS=-I./include/ -lpthread
 
 BIN_FOLDER=./bin/
 SRC_FOLDER=./src/

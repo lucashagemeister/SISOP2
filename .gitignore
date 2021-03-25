@@ -8,7 +8,5 @@
 # Local History for Visual Studio Code
 .history/
 
-#binary testing files
-./cli
-./client
-./server
+#objects
+./bin/*.o
