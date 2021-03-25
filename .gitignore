@@ -9,4 +9,4 @@
 .history/
 
 #objects
-./bin/*.o
+./bin/*
