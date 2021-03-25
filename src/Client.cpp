@@ -168,31 +168,26 @@ void *Client::do_threadReceiver(void* arg){
     while (TRUE) {
         
         readPacket = client->socket.readPacket();
+        if (readPacket == NULL)
+            exit(1);  // Connection lost
+
         
-        if (readPacket != NULL) {
+        pthread_mutex_lock(&mutex);
+        //INICIO DA SECAO CRITICA
+
             cout << "Tweet from" << readPacket->getAuthor() << "at" << readPacket->getTimestamp() << ":" << endl;
             cout << readPacket->getPayload() << "\n\n";
-            readPacket = NULL;	
-        } else 
-            exit(1);
-		
-        
-    pthread_mutex_lock(&mutex);
-    //INICIO DA SECAO CRITICA
-        std::future<std::string> futureThread = std::async(std::launch::async, skipReceiverMode);
-        std::chrono::system_clock::time_point five_seconds_passed = std::chrono::system_clock::now() + std::chrono::seconds(5);
-        std::future_status status = futureThread.wait_until(five_seconds_passed);
-	
-	if (status == std::future_status::ready){
-        	auto  result = futureThread.get();
-                //std::cout << " VOCE ESTA NO MODO SENDER \n";    
-	        pthread_mutex_unlock(&mutex); //liberar mutex para sender //FIM DA SECAO CRITICA
-        }
-	else {
-            	//std::cout << "VOCE CONTINUA NO MODO RECEIVER. \n";
-		//NAO FAZ NADA E CONTINUA NESTE WHILE, NESTE RECEIVER    
-        }	    
+            readPacket = NULL;
+
+            std::future<std::string> futureThread = std::async(std::launch::async, skipReceiverMode);
+            std::chrono::system_clock::time_point five_seconds_passed = std::chrono::system_clock::now() + std::chrono::seconds(5);
+            std::future_status status = futureThread.wait_until(five_seconds_passed);
+            
+            if (status == std::future_status::ready)
+                    auto  result = futureThread.get();
+                        //std::cout << " VOCE ESTA NO MODO SENDER \n";    
+
         //FIM DA SECAO CRITICA
-       //pthread_mutex_unlock(&mutex);
+        pthread_mutex_unlock(&mutex); //liberar mutex para sender 
     }
 }
