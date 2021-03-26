@@ -128,7 +128,8 @@ void *Client::do_threadSender(void* arg){
     while (true) {  
         pthread_mutex_lock(&mutex);
 	    
-        //INICIO DA SECAO CRITICA	    
+        //INICIO DA SECAO CRITICA
+	cout << "NOW YOU CAN SEND MESSAGES OR FOLLOW SOMEONE. WHAT WOULD YOU LIKE TO DO?" << endl;
 	do {
             c = getchar();
             command = command + c;
@@ -169,7 +170,7 @@ void *Client::do_threadReceiver(void* arg){
         
         pthread_mutex_lock(&mutex);
         //INICIO DA SECAO CRITICA
-
+	    cout << "WAITING FOR NEW MESSAGES..." <<endl;
             cout << "Tweet from" << readPacket->getAuthor() << "at" << readPacket->getTimestamp() << ":" << endl;
             cout << readPacket->getPayload() << "\n\n";
             readPacket = NULL;
