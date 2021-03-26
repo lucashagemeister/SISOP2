@@ -1,8 +1,8 @@
 #pragma once
 #include <stdint.h>
-#include <string.h>
 #include <iostream>
 #include <pthread.h>
+#include <string>
 #include "Socket.hpp"
 
 #define MAX_MESSAGE_SIZE 128
@@ -15,7 +15,7 @@ public:
     
     string user;
     int serverPort;
-    string serverAdress;
+    string serverAddress;
     ClientSocket socket;
 
     Client(string user, int serverPort, string serverAddress);

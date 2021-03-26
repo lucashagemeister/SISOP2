@@ -44,6 +44,24 @@ Packet* Socket::readPacket(){
 }
 
 
+Packet* Socket::readPacket(int socketfd){
+
+    Packet* pkt = new Packet();
+    memset(pkt, 0, sizeof (Packet));
+    int n = read(socketfd, pkt, sizeof(Packet));
+    if (n<0){
+        std::cout << "ERROR reading from socket: " << socketfd  << std::endl;
+        return NULL;
+    }
+    else if(n == 0){
+        std::cout << "Connection closed." << std::endl;
+        return NULL;
+    }
+
+    return pkt;
+}
+
+
 // return the n value gotten from send primitive
 int Socket::sendPacket(Packet pkt){
     int n = send(this->socketfd, &pkt, sizeof(pkt), MSG_NOSIGNAL); 
@@ -84,21 +102,21 @@ void ClientSocket::connectToServer(){
         
 }
 
-void ClientSocket::connectToServer(string serverAddress, int serverPort){
+void ClientSocket::connectToServer(const char* serverAddress, int serverPort){
     struct sockaddr_in serv_addr;
     struct hostent *server;
-	server = gethostbyname(serverAddress.c_str());
+	server = gethostbyname(serverAddress);
+    
 
     serv_addr.sin_family = AF_INET;     
 	serv_addr.sin_port = htons(serverPort);    
 	serv_addr.sin_addr = *((struct in_addr *)server->h_addr);
-	bzero(&(serv_addr.sin_zero), 8);     
+    bzero(&(serv_addr.sin_zero), 8);
 	
 
 	if (connect(this->getSocketfd(),(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) {
         printf("ERROR establishing connection\n");
         exit(1);
-    }
-        
+    }   
 }
 

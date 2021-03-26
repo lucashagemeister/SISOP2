@@ -12,6 +12,7 @@ int main(){
 	int i = 0;
 
 	serverSocket.bindAndListen();
+
 	while (1){
 		serverSocket.connectNewClient(&threadConnections[i], server);
 		i++;

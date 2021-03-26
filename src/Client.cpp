@@ -7,26 +7,24 @@
 using namespace std;
 
 Client::Client(string user, int serverPort, string serverAddress){
-
+    
     this->serverPort = serverPort;
-    this->serverAdress = serverAdress;
+    this->serverAddress = serverAddress;
     this->user = user;
     this->establishConnection();
 }
 
 void Client::establishConnection(){
 
-    ClientSocket clientSocket = ClientSocket();
-    this->socket = clientSocket;
-    clientSocket.connectToServer(this->serverAdress, this->serverPort);
-
+    this->socket.connectToServer(this->serverAddress.c_str(), this->serverPort);
+    std::cout << "Connected to server! Trying to send packet with user info..." << "\n\n";
     // Send user information to initiate session
     Packet userInfoPacket = Packet(USER_INFO_PKT, this->user.c_str());
-    clientSocket.sendPacket(userInfoPacket);
+    this->socket.sendPacket(userInfoPacket);
 
     // Read server answer
     Packet *serverAnswer;
-    serverAnswer = clientSocket.readPacket();
+    serverAnswer = this->socket.readPacket();
 
     if (serverAnswer != NULL){
         cout << serverAnswer->getPayload() << "\n\n";

@@ -219,10 +219,7 @@ void ServerSocket::connectNewClient(pthread_t *threadID, Server server){
     host_address client_address;
     string user;
     bool sessionAvailable;
-    Socket newClientSocket;
     Packet sessionResultPkt;
-
-    
 
     // Accepting connection to start communicating
     clilen = sizeof(struct sockaddr_in);
@@ -233,11 +230,12 @@ void ServerSocket::connectNewClient(pthread_t *threadID, Server server){
     }
 
     std::cout << "New connection estabilished on socket: " << *newsockfd << "\n\n";
-    newClientSocket = Socket(*newsockfd);
+    Socket newClientSocket = Socket(*newsockfd);
     
     // Verify if there are free sessions available
     // read client username from socket in 'user' var
     Packet *userPacket = newClientSocket.readPacket();
+
     if (userPacket == NULL){
         std::cout << "Unable to read user information. Closing connection." << std::endl;
         return;     // destructor automatically closes the socket
@@ -276,7 +274,7 @@ void ServerSocket::bindAndListen(){
     }
 	
 	listen(this->getSocketfd(), MAX_TCP_CONNECTIONS);
-	std::cout << "Listening...\n";
+	std::cout << "Listening..." << "\n\n";
 }
 
 
