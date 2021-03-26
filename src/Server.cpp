@@ -1,9 +1,5 @@
 #include "../include/Server.hpp"
-#include <iostream>
-#include <algorithm>
-#include <semaphore.h>
-#include <stdlib.h>
-#include <stdio.h>
+
 using namespace std;
 
 Server::Server()
@@ -214,12 +210,12 @@ ServerSocket::ServerSocket() : Socket(){
 void ServerSocket::connectNewClient(pthread_t *threadID, Server server){
 
     int *newsockfd = (int *) calloc(1, sizeof(int));
+    Socket *newClientSocket = (Socket *) calloc(1, sizeof(Socket));
 	socklen_t clilen;
 	struct sockaddr_in cli_addr;
     host_address client_address;
     string user;
-    bool sessionAvailable;
-    Packet sessionResultPkt;
+    
 
     // Accepting connection to start communicating
     clilen = sizeof(struct sockaddr_in);
@@ -228,13 +224,13 @@ void ServerSocket::connectNewClient(pthread_t *threadID, Server server){
         //exit(1);
         return;
     }
+    newClientSocket = new Socket(*newsockfd);
 
     std::cout << "New connection estabilished on socket: " << *newsockfd << "\n\n";
-    Socket newClientSocket = Socket(*newsockfd);
     
     // Verify if there are free sessions available
     // read client username from socket in 'user' var
-    Packet *userPacket = newClientSocket.readPacket();
+    Packet *userPacket = newClientSocket->readPacket();
 
     if (userPacket == NULL){
         std::cout << "Unable to read user information. Closing connection." << std::endl;
@@ -245,21 +241,22 @@ void ServerSocket::connectNewClient(pthread_t *threadID, Server server){
 
     client_address.ipv4 = inet_ntoa(cli_addr.sin_addr);
     client_address.port = ntohs(cli_addr.sin_port);
-    sessionAvailable = server.try_to_start_session(user, client_address);
-
+    bool sessionAvailable = server.try_to_start_session(user, client_address);
+    
+    Packet sessionResultPkt;
     if (!sessionAvailable){
         sessionResultPkt = Packet(SESSION_OPEN_FAILED, "Unable to connect to server: no sessions available.");
-        newClientSocket.sendPacket(sessionResultPkt);
+        newClientSocket->sendPacket(sessionResultPkt);
         return; // destructor automatically closes the socket
     } else{
         sessionResultPkt = Packet(SESSION_OPEN_SUCCEDED, "Connection succeded! Session established.");
-        newClientSocket.sendPacket(sessionResultPkt);
+        newClientSocket->sendPacket(sessionResultPkt);
     }
-
+    
     // Build args
     communiction_handler_args *args = (communiction_handler_args *) calloc(1, sizeof(communiction_handler_args));
     args->client_address = client_address;
-    args->connectedSocket = *newsockfd;
+    args->connectedSocket = newClientSocket;
     args->user = user;
 
     pthread_create(threadID, NULL, Server::communicationHandler, (void *)args);
@@ -269,7 +266,7 @@ void ServerSocket::connectNewClient(pthread_t *threadID, Server server){
 void ServerSocket::bindAndListen(){
     
     if (bind(this->getSocketfd(), (struct sockaddr *) &this->serv_addr, sizeof(this->serv_addr)) < 0) {
-		printf("ERROR on binding");
+		cout << "ERROR on binding\n";
         exit(1);
     }
 	
@@ -294,11 +291,10 @@ void *Server::communicationHandler(void *handlerArgs){
 
 void *Server::readCommandsHandler(void *handlerArgs){
 	struct communiction_handler_args *args = (struct communiction_handler_args *)handlerArgs;
-    Socket connectedSocket = Socket(args->connectedSocket);
 
     while(1){
 
-        Packet* receivedPacket = connectedSocket.readPacket();
+        Packet* receivedPacket = args->connectedSocket->readPacket();
         if (receivedPacket == NULL){  // connection closed
             args->server.close_session(args->user, args->client_address);
             return NULL;
@@ -323,12 +319,13 @@ void *Server::readCommandsHandler(void *handlerArgs){
 
 void *Server::sendNotificationsHandler(void *handlerArgs){
     struct communiction_handler_args *args = (struct communiction_handler_args *)handlerArgs;
-    Socket connectedSocket = Socket(args->connectedSocket);
     vector<notification> notifications;
     Packet notificationPacket;
     int n;
 
+    cout << "bbbbbbbbb\n\n";
     args->server.retrieve_notifications_from_offline_period(args->user, args->client_address);
+    cout << "cccccccccccc\n\n";
 
     while(1) {
         notifications = args->server.read_notifications(args->client_address);
@@ -338,7 +335,7 @@ void *Server::sendNotificationsHandler(void *handlerArgs){
             notificationPacket = Packet(NOTIFICATION_PKT, (*it).timestamp, 
                                         (*it).body.c_str(), (*it).author.c_str());
 
-            n = connectedSocket.sendPacket(notificationPacket);
+            n = args->connectedSocket->sendPacket(notificationPacket);
             if (n<0){
                 args->server.close_session(args->user, args->client_address);
                 return NULL;

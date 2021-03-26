@@ -7,6 +7,10 @@
 #include <map>
 #include <vector>
 #include <queue>
+#include <iostream>
+#include <algorithm>
+#include <stdlib.h>
+#include <stdio.h>
 #include "Socket.hpp"
 using namespace std;
 
@@ -30,7 +34,6 @@ typedef struct __notification {
 	}
 
 } notification;
-
 
 
 
@@ -83,7 +86,7 @@ private:
 
 
 struct communiction_handler_args {
-	int connectedSocket;
+	Socket* connectedSocket;
 	host_address client_address; 
 	string user;
     Server server;

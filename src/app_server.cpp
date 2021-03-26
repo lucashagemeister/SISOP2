@@ -1,10 +1,7 @@
 #include "../include/Server.hpp"
-#include "../include/Socket.hpp"
-
 
 ServerSocket serverSocket = ServerSocket();
 Server server = Server();
-
 
 int main(){
 

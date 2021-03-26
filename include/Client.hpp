@@ -3,11 +3,10 @@
 #include <iostream>
 #include <pthread.h>
 #include <string>
+#include <list>
+#include <future>
+#include <chrono>
 #include "Socket.hpp"
-
-#define MAX_MESSAGE_SIZE 128
-#define FALSE 0
-#define TRUE  1
 
 
 class Client{

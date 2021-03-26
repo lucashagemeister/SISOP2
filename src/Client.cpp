@@ -1,8 +1,5 @@
 #include "../include/Client.hpp"
 #include "../include/defines.hpp"
-#include <list>
-#include <future>
-#include <chrono>
 
 using namespace std;
 
@@ -128,7 +125,7 @@ void *Client::do_threadSender(void* arg){
     char c; 
     std::string command;
 	
-    while (TRUE) {  
+    while (true) {  
         pthread_mutex_lock(&mutex);
 	    
         //INICIO DA SECAO CRITICA	    
@@ -163,7 +160,7 @@ void *Client::do_threadReceiver(void* arg){
     pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
     Packet* readPacket;
 
-    while (TRUE) {
+    while (true) {
         
         readPacket = client->socket.readPacket();
         if (readPacket == NULL)
