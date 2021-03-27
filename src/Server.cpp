@@ -49,7 +49,7 @@ bool Server::try_to_start_session(string user, host_address address)
     if(session_started == 0) // 0 if session started, -1 if not
     { 
         sessions[user].push_back(address);
-        active_users_pending_notifications.insert({address, priority_queue<uint32_t>()});
+        active_users_pending_notifications.insert({address, priority_queue<uint32_t, vector<uint32_t>, greater<uint32_t>>()});
     }
     pthread_mutex_unlock(&mutex_session); // Fim SC
     this->print_sessions();
@@ -65,6 +65,7 @@ bool Server::user_exists(string user)
 // call this function when new notification is created
 void Server::create_notification(string user, string body, time_t timestamp)
 {
+    cout << "\nNew notification!\n";
     pthread_mutex_lock(&follower_count_mutex);
 
     uint16_t pending_users{0};
@@ -88,6 +89,7 @@ void Server::create_notification(string user, string body, time_t timestamp)
 // call this function after new notification is created
 void Server::assign_notification_to_active_sessions(uint32_t notification_id, list<string> followers) 
 {
+    cout << "\nAssigning new notification to active sessions...\n";
     print_users_unread_notifications();
     
     for (auto user : followers)
@@ -122,6 +124,7 @@ bool Server::user_is_active(string user)
 // call this function when new session is started (after try_to_start_session()) to wake notification producer to client
 void Server::retrieve_notifications_from_offline_period(string user, host_address addr) 
 {
+    cout << "\nGetting notifications from offline period to active sessions...\n";
     print_users_unread_notifications();
     pthread_mutex_lock(&mutex_notification_sender);
     
@@ -141,7 +144,7 @@ void Server::retrieve_notifications_from_offline_period(string user, host_addres
 
 void Server::print_users_unread_notifications() 
 {
-    cout << "\nusers_unread_notifications: " << users_unread_notifications.size() << "\n";
+    cout << "\nUsers unread notifications: \n";
 
     for(auto it = users_unread_notifications.begin(); it != users_unread_notifications.end(); it++)
     {
@@ -157,7 +160,7 @@ void Server::print_users_unread_notifications()
 
 void Server::print_active_users_unread_notifications() 
 {
-    cout << "active_users_pending_notifications: " << active_users_pending_notifications.size() << "\n";
+    cout << "Active users notifications to receive: \n";
 
     for(auto it = active_users_pending_notifications.begin(); it != active_users_pending_notifications.end(); it++)
     {
@@ -221,6 +224,7 @@ void Server::read_notifications(host_address addr, vector<notification>* notific
         cout << "No notifications for address " << addr.ipv4 <<":"<< addr.port << ". Sleeping...\n";
         pthread_cond_wait(&cond_notification_full, &mutex_notification_sender); 
     }
+    cout << "Assembling notifications...\n";
     while(!active_users_pending_notifications[addr].empty()) 
     {
         uint32_t notification_id = (active_users_pending_notifications[addr]).top();
@@ -238,6 +242,7 @@ void Server::read_notifications(host_address addr, vector<notification>* notific
 
     // signal producer
     pthread_cond_signal(&cond_notification_empty);
+    pthread_cond_signal(&cond_notification_full); // testing if waking someone again will improve client flow without messing shit up
     pthread_mutex_unlock(&mutex_notification_sender);
 
 }
@@ -419,8 +424,6 @@ void *Server::sendNotificationsHandler(void *handlerArgs)
 
     while(1)
     {
-        cout << "here\n";
-        sleep(3);
         /*
         args->connectedSocket->sendPacket(Packet(MESSAGE_PKT, "quem mutex sempre alcança\n"));
         */
