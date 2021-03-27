@@ -11,7 +11,7 @@ int main(){
 	serverSocket.bindAndListen();
 
 	while (1){
-		serverSocket.connectNewClient(&threadConnections[i], *server);
+		serverSocket.connectNewClient(&threadConnections[i], server);
 		i++;
 	}
 	return 0; 

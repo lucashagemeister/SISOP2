@@ -51,7 +51,7 @@ public:
     void create_notification(string user, string body, time_t timestamp);
     void close_session(string user, host_address address);
     void retrieve_notifications_from_offline_period(string user, host_address addr);
-    vector<notification> read_notifications(host_address addr);
+    void read_notifications(host_address addr, vector<notification>* notifications);
 
     static void *communicationHandler(void *handlerArgs);
     static void *readCommandsHandler(void *handlerArgs);
@@ -93,7 +93,7 @@ struct communiction_handler_args {
 	Socket* connectedSocket;
 	host_address client_address; 
 	string user;
-    Server server;
+    Server* server;
 };
 
 class ServerSocket : public Socket {
@@ -102,7 +102,7 @@ class ServerSocket : public Socket {
 		struct sockaddr_in serv_addr;
 
 		void bindAndListen();
-		void connectNewClient(pthread_t *threadID, Server server);
+		void connectNewClient(pthread_t *threadID, Server *server);
 
 		ServerSocket();
 };

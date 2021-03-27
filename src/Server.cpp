@@ -135,7 +135,7 @@ void Server::retrieve_notifications_from_offline_period(string user, host_addres
 
 void Server::print_users_unread_notifications() 
 {
-    cout << users_unread_notifications.size() << "\n";
+    cout << "\nusers_unread_notifications: " << users_unread_notifications.size() << "\n";
 
     for(auto it = users_unread_notifications.begin(); it != users_unread_notifications.end(); it++)
     {
@@ -150,7 +150,7 @@ void Server::print_users_unread_notifications()
 
 void Server::print_sessions() 
 {
-    cout << sessions.size() << "\n";
+    cout << "\nSessions: " << sessions.size() << "\n";
 
     for(auto it = sessions.begin(); it != sessions.end(); it++)
     {
@@ -165,7 +165,7 @@ void Server::print_sessions()
 
 void Server::print_active_notifications() 
 {
-    cout << active_notifications.size() << "\n";
+    cout << "\nNotifications: " << active_notifications.size() << "\n";
 
     for(auto it = active_notifications.begin(); it != active_notifications.end(); it++)
     {
@@ -178,11 +178,12 @@ void Server::print_active_notifications()
 
 
 // call this function on consumer thread that will feed the user with its notifications
-vector<notification> Server::read_notifications(host_address addr) 
+void Server::read_notifications(host_address addr, vector<notification>* notifications) 
 {
-    vector<notification> notifications = vector<notification>();
     pthread_mutex_lock(&mutex_notification_sender);
     
+    cout << "debug 3 :(";
+    cout << active_users_pending_notifications.size();
     while (active_users_pending_notifications[addr].empty()) { 
         // sleep while user doesn't have notifications to read
         pthread_cond_wait(&cond_notification_full, &mutex_notification_sender); 
@@ -194,7 +195,7 @@ vector<notification> Server::read_notifications(host_address addr)
         {
             if(notif.id == notification_id)
             {
-                notifications.push_back(notif);
+                notifications->push_back(notif);
                 break;
             }
         }
@@ -205,8 +206,8 @@ vector<notification> Server::read_notifications(host_address addr)
     // signal producer
     pthread_cond_signal(&cond_notification_empty);
     pthread_mutex_unlock(&mutex_notification_sender);
+    cout << "debug 3 :(";
 
-    return notifications;
 }
 
 
@@ -253,7 +254,7 @@ ServerSocket::ServerSocket() : Socket(){
 
 }
 
-void ServerSocket::connectNewClient(pthread_t *threadID, Server server){
+void ServerSocket::connectNewClient(pthread_t *threadID, Server* server){
 
     int *newsockfd = (int *) calloc(1, sizeof(int));
     Socket *newClientSocket = (Socket *) calloc(1, sizeof(Socket));
@@ -287,9 +288,10 @@ void ServerSocket::connectNewClient(pthread_t *threadID, Server server){
 
     client_address.ipv4 = inet_ntoa(cli_addr.sin_addr);
     client_address.port = ntohs(cli_addr.sin_port);
-    bool sessionAvailable = server.try_to_start_session(user, client_address);
+    bool sessionAvailable = server->try_to_start_session(user, client_address);
 
-    server.print_users_unread_notifications();
+    server->print_sessions();
+    server->print_users_unread_notifications();
     
     Packet sessionResultPkt;
     if (!sessionAvailable){
@@ -306,6 +308,7 @@ void ServerSocket::connectNewClient(pthread_t *threadID, Server server){
     args->client_address = client_address;
     args->connectedSocket = newClientSocket;
     args->user = user;
+    args->server = server;
 
     pthread_create(threadID, NULL, Server::communicationHandler, (void *)args);
 }
@@ -341,22 +344,20 @@ void *Server::readCommandsHandler(void *handlerArgs){
 	struct communiction_handler_args *args = (struct communiction_handler_args *)handlerArgs;
 
     while(1){
-
-        //args->server.print_users_unread_notifications();
         Packet* receivedPacket = args->connectedSocket->readPacket();
         if (receivedPacket == NULL){  // connection closed
-            args->server.close_session(args->user, args->client_address);
+            args->server->close_session(args->user, args->client_address);
             return NULL;
         }
 
         switch(receivedPacket->getType()){
 
             case COMMAND_FOLLOW_PKT:
-                args->server.follow_user(args->user, receivedPacket->getPayload());
+                args->server->follow_user(args->user, receivedPacket->getPayload());
                 break;
 
             case COMMAND_SEND_PKT:
-                args->server.create_notification(args->user, receivedPacket->getPayload(), receivedPacket->getTimestamp());
+                args->server->create_notification(args->user, receivedPacket->getPayload(), receivedPacket->getTimestamp());
                 break;
 
             default:
@@ -368,17 +369,16 @@ void *Server::readCommandsHandler(void *handlerArgs){
 
 void *Server::sendNotificationsHandler(void *handlerArgs){
     struct communiction_handler_args *args = (struct communiction_handler_args *)handlerArgs;
-    vector<notification> notifications;
+    vector<notification> notifications = vector<notification>();
     Packet notificationPacket;
     int n;
 
-    cout << "debug 1\n\n"; 
-    args->server.retrieve_notifications_from_offline_period(args->user, args->client_address);
-    cout << "debug 1\n\n";
+    args->server->retrieve_notifications_from_offline_period(args->user, args->client_address);
+    args->server->print_users_unread_notifications();
 
     while(1) {
         cout << "debug 2\n\n";
-        notifications = args->server.read_notifications(args->client_address);
+        args->server->read_notifications(args->client_address, &notifications);
         cout << "debug 2\n\n";
 
         for(auto it = std::begin(notifications); it != std::end(notifications); ++it) {
@@ -388,7 +388,7 @@ void *Server::sendNotificationsHandler(void *handlerArgs){
 
             n = args->connectedSocket->sendPacket(notificationPacket);
             if (n<0){
-                args->server.close_session(args->user, args->client_address);
+                args->server->close_session(args->user, args->client_address);
                 return NULL;
             }
         }
