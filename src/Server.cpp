@@ -52,7 +52,7 @@ bool Server::try_to_start_session(string user, host_address address)
         active_users_pending_notifications.insert({address, priority_queue<uint32_t, vector<uint32_t>, greater<uint32_t>>()});
     }
     pthread_mutex_unlock(&mutex_session); // Fim SC
-    this->print_sessions();
+    //print_sessions();
     return session_started == 0; 
 }
 
@@ -90,7 +90,7 @@ void Server::create_notification(string user, string body, time_t timestamp)
 void Server::assign_notification_to_active_sessions(uint32_t notification_id, list<string> followers) 
 {
     cout << "\nAssigning new notification to active sessions...\n";
-    print_users_unread_notifications();
+    //print_users_unread_notifications();
     
     pthread_mutex_lock(&mutex_notification_sender);
     for (auto user : followers)
@@ -115,7 +115,7 @@ void Server::assign_notification_to_active_sessions(uint32_t notification_id, li
         }
     }
     pthread_mutex_unlock(&mutex_notification_sender);
-    print_active_users_unread_notifications();
+    //print_active_users_unread_notifications();
 
 }
 
@@ -129,7 +129,7 @@ bool Server::user_is_active(string user)
 void Server::retrieve_notifications_from_offline_period(string user, host_address addr) 
 {
     cout << "\nGetting notifications from offline period to active sessions...\n";
-    print_users_unread_notifications();
+    //print_users_unread_notifications();
     pthread_mutex_lock(&mutex_notification_sender);
     
     for(auto notification_id : users_unread_notifications[user]) 
@@ -142,7 +142,7 @@ void Server::retrieve_notifications_from_offline_period(string user, host_addres
     // signal consumer
     pthread_cond_signal(&cond_notification_full);
     pthread_mutex_unlock(&mutex_notification_sender);
-    print_active_users_unread_notifications();
+    //print_active_users_unread_notifications();
 }
 
 
@@ -196,7 +196,7 @@ void Server::close_session(string user, host_address address)
         sem_post(&(user_sessions_semaphore[user]));
     }
     pthread_mutex_unlock(&mutex_session);
-    print_sessions();
+    //print_sessions();
 }
 
 
@@ -210,7 +210,7 @@ void Server::follow_user(string user, string user_to_follow)
     }
 
     pthread_mutex_unlock(&follow_mutex);
-    print_followers();
+    //print_followers();
 }
 
 
@@ -333,8 +333,8 @@ void ServerSocket::connectNewClient(pthread_t *threadID, Server* server){
     client_address.port = ntohs(cli_addr.sin_port);
     bool sessionAvailable = server->try_to_start_session(user, client_address);
 
-    server->print_sessions();
-    server->print_users_unread_notifications();
+    //server->print_sessions();
+    //server->print_users_unread_notifications();
     
     Packet sessionResultPkt;
     if (!sessionAvailable){
@@ -421,9 +421,9 @@ void *Server::sendNotificationsHandler(void *handlerArgs)
     Packet notificationPacket;
     int n;
 
-    args->server->print_users_unread_notifications();
+    //args->server->print_users_unread_notifications();
     args->server->retrieve_notifications_from_offline_period(args->user, args->client_address);
-    args->server->print_users_unread_notifications();
+    //args->server->print_users_unread_notifications();
 
     while(1)
     {    
