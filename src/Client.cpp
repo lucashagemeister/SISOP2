@@ -122,7 +122,7 @@ void Client::executeFollowCommand() {
 
     if (flagSpaces == 0 && person[0] == '@') {
         // Send only the username without @
-        this->socket.sendPacket(Packet(COMMAND_FOLLOW_PKT, person.substr(1).c_str()));
+        this->socket.sendPacket(Packet(COMMAND_FOLLOW_PKT, person.substr(0, person.size()-1).c_str()));
     }  
 }
 
@@ -176,7 +176,7 @@ void *Client::do_threadSender(void* arg){
 
         command = "";
             //INICIO DA SECAO CRITICA
-        cout << "Command mode slected. What would you like to do?" << endl;
+        cout << "Command mode selected. What would you like to do?" << endl;
         do {
             c = getchar();
             command += c;
@@ -213,7 +213,7 @@ void *Client::do_threadReceiver(void* arg){
 
         pthread_mutex_lock(&(client->mutex_print));
             if (readPacket->getType() == NOTIFICATION_PKT){
-                cout << "Tweet from" << readPacket->getAuthor() << "at" << readPacket->getTimestamp() << ":" << endl;
+                cout << "Tweet from " << readPacket->getAuthor() << " at " << readPacket->getTimestamp() << ":" << endl;
                 cout << readPacket->getPayload() << "\n\n";
                 readPacket = NULL;
             }
