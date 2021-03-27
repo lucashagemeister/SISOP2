@@ -36,7 +36,7 @@ enum{
 #endif 
 
 #ifndef LF
-#define LF 12
+#define LF 10
 #endif 
 
 #ifndef SERVER_ADDR

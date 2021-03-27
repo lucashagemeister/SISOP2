@@ -52,7 +52,7 @@ bool Server::try_to_start_session(string user, host_address address)
         active_users_pending_notifications.insert({address, priority_queue<uint32_t>()});
     }
     pthread_mutex_unlock(&mutex_session); // Fim SC
-
+    this->print_sessions();
     return session_started == 0; 
 }
 
@@ -117,7 +117,7 @@ bool Server::user_is_active(string user)
 // call this function when new session is started (after try_to_start_session()) to wake notification producer to client
 void Server::retrieve_notifications_from_offline_period(string user, host_address addr) 
 {
-    //print_users_unread_notifications();
+    print_users_unread_notifications();
     pthread_mutex_lock(&mutex_notification_sender);
     
     for(auto notification_id : users_unread_notifications[user]) 
@@ -176,13 +176,27 @@ void Server::print_active_notifications()
     }
 }
 
+void Server::print_followers() 
+{
+    cout << "\nFollowers: " << followers.size() << "\n";
+
+    for(auto it = followers.begin(); it != followers.end(); it++)
+    {
+        cout << it->first << ": [";
+        for(auto itl = (it->second).begin(); itl != (it->second).end(); itl++)
+        {
+            cout << *itl << ", ";
+        }
+        cout << "]\n";
+    }
+}
+
 
 // call this function on consumer thread that will feed the user with its notifications
 void Server::read_notifications(host_address addr, vector<notification>* notifications) 
 {
     pthread_mutex_lock(&mutex_notification_sender);
     
-    cout << "debug 3 :(";
     cout << active_users_pending_notifications.size();
     while (active_users_pending_notifications[addr].empty()) { 
         // sleep while user doesn't have notifications to read
@@ -206,7 +220,6 @@ void Server::read_notifications(host_address addr, vector<notification>* notific
     // signal producer
     pthread_cond_signal(&cond_notification_empty);
     pthread_mutex_unlock(&mutex_notification_sender);
-    cout << "debug 3 :(";
 
 }
 
@@ -311,6 +324,7 @@ void ServerSocket::connectNewClient(pthread_t *threadID, Server* server){
     args->server = server;
 
     pthread_create(threadID, NULL, Server::communicationHandler, (void *)args);
+    //pthread_join(*threadID, NULL);
 }
 
 
@@ -336,6 +350,9 @@ void *Server::communicationHandler(void *handlerArgs){
     pthread_create(&readCommandsT, NULL, Server::readCommandsHandler, handlerArgs);
     pthread_create(&sendNotificationsT, NULL, Server::sendNotificationsHandler, handlerArgs);
 
+    pthread_join(readCommandsT, NULL);
+    pthread_join(sendNotificationsT, NULL);
+
     return NULL;
 }
 
@@ -349,11 +366,13 @@ void *Server::readCommandsHandler(void *handlerArgs){
             args->server->close_session(args->user, args->client_address);
             return NULL;
         }
+        cout << receivedPacket->getPayload() << "\n\n";
 
         switch(receivedPacket->getType()){
 
             case COMMAND_FOLLOW_PKT:
                 args->server->follow_user(args->user, receivedPacket->getPayload());
+                args->server->print_followers();
                 break;
 
             case COMMAND_SEND_PKT:
@@ -377,20 +396,21 @@ void *Server::sendNotificationsHandler(void *handlerArgs){
     args->server->print_users_unread_notifications();
 
     while(1) {
-        cout << "debug 2\n\n";
+        sleep(3);
+        args->connectedSocket->sendPacket(Packet(MESSAGE_PKT, "quem mutex sempre alcança\n"));
+        /*
         args->server->read_notifications(args->client_address, &notifications);
-        cout << "debug 2\n\n";
-
         for(auto it = std::begin(notifications); it != std::end(notifications); ++it) {
+            
             
             notificationPacket = Packet(NOTIFICATION_PKT, (*it).timestamp, 
                                         (*it).body.c_str(), (*it).author.c_str());
-
+            
             n = args->connectedSocket->sendPacket(notificationPacket);
             if (n<0){
                 args->server->close_session(args->user, args->client_address);
                 return NULL;
             }
-        }
+        }*/
     }
 }

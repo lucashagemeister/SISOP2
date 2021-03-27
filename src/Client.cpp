@@ -3,12 +3,20 @@
 
 using namespace std;
 
+
+
 Client::Client(string user, int serverPort, string serverAddress){
     
     this->serverPort = serverPort;
     this->serverAddress = serverAddress;
     this->user = user;
     this->establishConnection();
+
+    pthread_mutex_init(&mutex_print, NULL);
+    pthread_mutex_init(&mutex_input, NULL);
+    pthread_mutex_init(&mutex_control, NULL);
+
+    pthread_mutex_lock(&mutex_input);
 }
 
 void Client::establishConnection(){
@@ -119,71 +127,99 @@ void Client::executeFollowCommand() {
 }
 
 
-void *Client::do_threadSender(void* arg){
-    Client *client = (Client*) arg;
-    pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
-    char c; 
-    std::string command;
-	
-    while (true) {  
-        pthread_mutex_lock(&mutex);
-	    
-        //INICIO DA SECAO CRITICA
-	cout << "NOW YOU CAN SEND MESSAGES OR FOLLOW SOMEONE. WHAT WOULD YOU LIKE TO DO?" << endl;
-	do {
-            c = getchar();
-            command = command + c;
-        } while (c != LF && c!= ' ');
-        command.pop_back(); //remover o LF do final do comando
-	    
-	if (command.compare("FOLLOW") == 0) {
-            client->executeFollowCommand();
-            client->cleanBuffer();
-        }
-	    
-        else if (command.compare("SEND") == 0) {
-            client->executeSendCommand();
-            client->cleanBuffer();
-        }
-        else {
-            cout << "Command not found! Please try again." << endl;
-        }	  	    
-        //FIM DA SECAO CRITICA
-
-        pthread_mutex_unlock(&mutex);
-    }
-}
-
-void *Client::do_threadReceiver(void* arg){
+void *Client::controlThread(void* arg){
 
     Client *client = (Client*) arg; 
 
-    pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+    // How to monitor user input:
+    // https://stackoverflow.com/questions/34479795/make-c-not-wait-for-user-input
+    fd_set rfds, save_rfds;
+    struct timeval tv;
+    int retval;
+    FD_ZERO(&rfds);
+    FD_SET(0, &rfds);
+    save_rfds = rfds;
+    tv.tv_sec = 0;
+    tv.tv_usec = 0;
+
+    while(true){
+        pthread_mutex_lock(&(client->mutex_control));
+        retval = select(1, &rfds, NULL, NULL, &tv);
+        rfds = save_rfds;
+
+
+        if (retval){   // User hitted Enter key
+            pthread_mutex_unlock(&(client->mutex_control));
+            pthread_mutex_unlock(&(client->mutex_input));
+            sleep(2);  // waits threadSender get the mutex
+
+            pthread_mutex_lock(&(client->mutex_control)); // waits sender free mutex
+        }
+
+        pthread_mutex_unlock(&(client->mutex_control));
+    }
+}
+
+
+
+void *Client::do_threadSender(void* arg){
+    Client *client = (Client*) arg;
+    char c; 
+    std::string command;
+	
+    
+    while (true) { 
+        pthread_mutex_lock(&(client->mutex_input));
+        pthread_mutex_lock(&(client->mutex_control));
+        pthread_mutex_lock(&(client->mutex_print));
+        client->cleanBuffer();
+
+        command = "";
+            //INICIO DA SECAO CRITICA
+        cout << "Command mode slected. What would you like to do?" << endl;
+        do {
+            c = getchar();
+            command += c;
+        } while (c != LF && c!= ' ');
+        command.pop_back(); //remover o LF do final do comando
+            
+        if (command.compare("FOLLOW") == 0) 
+            client->executeFollowCommand();
+            
+        else if (command.compare("SEND") == 0) 
+            client->executeSendCommand();
+
+        else 
+            cout << "Command not found! Aborting...\n" << endl;
+
+        client->cleanBuffer();
+        //FIM DA SECAO CRITICA
+        pthread_mutex_unlock(&(client->mutex_print));
+        pthread_mutex_unlock(&(client->mutex_control));
+    }
+}
+
+
+void *Client::do_threadReceiver(void* arg){
+    
+    Client *client = (Client*) arg; 
     Packet* readPacket;
 
-    while (true) {
+    while (true) {    
         
         readPacket = client->socket.readPacket();
         if (readPacket == NULL)
             exit(1);  // Connection lost
 
-        
-        pthread_mutex_lock(&mutex);
-        //INICIO DA SECAO CRITICA
-	    cout << "WAITING FOR NEW MESSAGES..." <<endl;
-            cout << "Tweet from" << readPacket->getAuthor() << "at" << readPacket->getTimestamp() << ":" << endl;
-            cout << readPacket->getPayload() << "\n\n";
-            readPacket = NULL;
-
-            std::future<std::string> futureThread = std::async(std::launch::async, skipReceiverMode);
-            std::chrono::system_clock::time_point five_seconds_passed = std::chrono::system_clock::now() + std::chrono::seconds(5);
-            std::future_status status = futureThread.wait_until(five_seconds_passed);
-            
-            if (status == std::future_status::ready)
-                    auto  result = futureThread.get();
-                        //std::cout << " VOCE ESTA NO MODO SENDER \n";    
-
-        //FIM DA SECAO CRITICA
-        pthread_mutex_unlock(&mutex); //liberar mutex para sender 
+        pthread_mutex_lock(&(client->mutex_print));
+            if (readPacket->getType() == NOTIFICATION_PKT){
+                cout << "Tweet from" << readPacket->getAuthor() << "at" << readPacket->getTimestamp() << ":" << endl;
+                cout << readPacket->getPayload() << "\n\n";
+                readPacket = NULL;
+            }
+            else if (readPacket->getType() == MESSAGE_PKT){
+                cout << "\nMessage from server: " << readPacket->getPayload() << "\n";
+            }
+        pthread_mutex_unlock(&(client->mutex_print));
     }
 }

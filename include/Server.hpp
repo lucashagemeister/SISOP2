@@ -61,6 +61,7 @@ public:
     void print_users_unread_notifications();
     void print_sessions();
     void print_active_notifications();
+    void print_followers();
 
     
 private: 

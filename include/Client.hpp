@@ -4,8 +4,6 @@
 #include <pthread.h>
 #include <string>
 #include <list>
-#include <future>
-#include <chrono>
 #include "Socket.hpp"
 
 
@@ -16,12 +14,16 @@ public:
     int serverPort;
     string serverAddress;
     ClientSocket socket;
-
+    
     Client(string user, int serverPort, string serverAddress);
     static void *do_threadSender(void* arg);
 	static void *do_threadReceiver(void* arg);
-    void startThreads();
+    static void *controlThread(void* arg);
 
+    pthread_mutex_t mutex_print;
+    pthread_mutex_t mutex_input;
+    pthread_mutex_t mutex_control;
+    
  private:
 	void cleanBuffer(void);
 	void executeSendCommand();
