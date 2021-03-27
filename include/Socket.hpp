@@ -10,6 +10,7 @@
 #include <unistd.h>
 #include <iostream>
 #include <pthread.h>
+#include <string>
 #include "Packet.hpp"
 using namespace std;
 
@@ -38,6 +39,7 @@ class Socket
 		int getSocketfd();
 		
 		Packet* readPacket();
+		static Packet* readPacket(int socketfd);
         int sendPacket(Packet packet);
 		int sendPacket(Packet pkt, int socketfd);
 		
@@ -49,7 +51,7 @@ class Socket
 class ClientSocket : public Socket {
 	public:
 		void connectToServer();
-		void connectToServer(string serverAddress, int serverPort);
+		void connectToServer(const char* serverAddress, int serverPort);
 };
 
 

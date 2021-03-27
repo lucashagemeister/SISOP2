@@ -1,32 +1,27 @@
 #include "../include/Client.hpp"
 #include "../include/defines.hpp"
-#include <list>
-#include <future>
-#include <chrono>
 
 using namespace std;
 
 Client::Client(string user, int serverPort, string serverAddress){
-
+    
     this->serverPort = serverPort;
-    this->serverAdress = serverAdress;
+    this->serverAddress = serverAddress;
     this->user = user;
     this->establishConnection();
 }
 
 void Client::establishConnection(){
 
-    ClientSocket clientSocket = ClientSocket();
-    this->socket = clientSocket;
-    clientSocket.connectToServer(this->serverAdress, this->serverPort);
-
+    this->socket.connectToServer(this->serverAddress.c_str(), this->serverPort);
+    std::cout << "Connected to server! Trying to send packet with user info..." << "\n\n";
     // Send user information to initiate session
     Packet userInfoPacket = Packet(USER_INFO_PKT, this->user.c_str());
-    clientSocket.sendPacket(userInfoPacket);
+    this->socket.sendPacket(userInfoPacket);
 
     // Read server answer
     Packet *serverAnswer;
-    serverAnswer = clientSocket.readPacket();
+    serverAnswer = this->socket.readPacket();
 
     if (serverAnswer != NULL){
         cout << serverAnswer->getPayload() << "\n\n";
@@ -130,10 +125,11 @@ void *Client::do_threadSender(void* arg){
     char c; 
     std::string command;
 	
-    while (TRUE) {  
+    while (true) {  
         pthread_mutex_lock(&mutex);
 	    
-        //INICIO DA SECAO CRITICA	    
+        //INICIO DA SECAO CRITICA
+	cout << "NOW YOU CAN SEND MESSAGES OR FOLLOW SOMEONE. WHAT WOULD YOU LIKE TO DO?" << endl;
 	do {
             c = getchar();
             command = command + c;
@@ -165,7 +161,7 @@ void *Client::do_threadReceiver(void* arg){
     pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
     Packet* readPacket;
 
-    while (TRUE) {
+    while (true) {
         
         readPacket = client->socket.readPacket();
         if (readPacket == NULL)
@@ -174,7 +170,7 @@ void *Client::do_threadReceiver(void* arg){
         
         pthread_mutex_lock(&mutex);
         //INICIO DA SECAO CRITICA
-
+	    cout << "WAITING FOR NEW MESSAGES..." <<endl;
             cout << "Tweet from" << readPacket->getAuthor() << "at" << readPacket->getTimestamp() << ":" << endl;
             cout << readPacket->getPayload() << "\n\n";
             readPacket = NULL;

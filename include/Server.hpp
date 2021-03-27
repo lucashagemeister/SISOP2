@@ -7,6 +7,10 @@
 #include <map>
 #include <vector>
 #include <queue>
+#include <iostream>
+#include <algorithm>
+#include <stdlib.h>
+#include <stdio.h>
 #include "Socket.hpp"
 using namespace std;
 
@@ -34,7 +38,6 @@ typedef struct __notification {
 
 
 
-
 class Server
 {
 public:
@@ -55,6 +58,9 @@ public:
     static void *sendNotificationsHandler(void *handlerArgs);
 
 
+    void print_users_unread_notifications();
+    void print_sessions();
+    void print_active_notifications();
 
     
 private: 
@@ -79,11 +85,12 @@ private:
     bool user_is_active(string user);
     void assign_notification_to_active_sessions(uint32_t notification_id, list<string> followers);
 
+
 };
 
 
 struct communiction_handler_args {
-	int connectedSocket;
+	Socket* connectedSocket;
 	host_address client_address; 
 	string user;
     Server server;

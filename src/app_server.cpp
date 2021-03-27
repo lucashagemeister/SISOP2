@@ -1,10 +1,7 @@
 #include "../include/Server.hpp"
-#include "../include/Socket.hpp"
-
 
 ServerSocket serverSocket = ServerSocket();
-Server server = Server();
-
+Server* server = new Server();
 
 int main(){
 
@@ -12,8 +9,9 @@ int main(){
 	int i = 0;
 
 	serverSocket.bindAndListen();
+
 	while (1){
-		serverSocket.connectNewClient(&threadConnections[i], server);
+		serverSocket.connectNewClient(&threadConnections[i], *server);
 		i++;
 	}
 	return 0; 

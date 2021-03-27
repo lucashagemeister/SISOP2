@@ -1,13 +1,10 @@
 #include "../include/Server.hpp"
-#include <iostream>
-#include <algorithm>
-#include <semaphore.h>
-#include <stdlib.h>
-#include <stdio.h>
+
 using namespace std;
 
 Server::Server()
 {
+    this->notification_id_counter = 0;
     mutex_session = PTHREAD_MUTEX_INITIALIZER;
     follow_mutex = PTHREAD_MUTEX_INITIALIZER;
     follower_count_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -106,7 +103,7 @@ void Server::assign_notification_to_active_sessions(uint32_t notification_id, li
 
             // signal consumer that will send to client
             pthread_cond_signal(&cond_notification_full);
-            pthread_mutex_lock(&mutex_notification_sender);
+            pthread_mutex_unlock(&mutex_notification_sender);
         }
     }
 }
@@ -120,6 +117,7 @@ bool Server::user_is_active(string user)
 // call this function when new session is started (after try_to_start_session()) to wake notification producer to client
 void Server::retrieve_notifications_from_offline_period(string user, host_address addr) 
 {
+    //print_users_unread_notifications();
     pthread_mutex_lock(&mutex_notification_sender);
     
     for(auto notification_id : users_unread_notifications[user]) 
@@ -131,7 +129,51 @@ void Server::retrieve_notifications_from_offline_period(string user, host_addres
 
     // signal consumer
     pthread_cond_signal(&cond_notification_full);
-    pthread_mutex_lock(&mutex_notification_sender);
+    pthread_mutex_unlock(&mutex_notification_sender);
+}
+
+
+void Server::print_users_unread_notifications() 
+{
+    cout << users_unread_notifications.size() << "\n";
+
+    for(auto it = users_unread_notifications.begin(); it != users_unread_notifications.end(); it++)
+    {
+        cout << it->first << ": [";
+        for(auto itl = (it->second).begin(); itl != (it->second).end(); itl++)
+        {
+            cout << *itl << ", ";
+        }
+        cout << "]\n";
+    }
+}
+
+void Server::print_sessions() 
+{
+    cout << sessions.size() << "\n";
+
+    for(auto it = sessions.begin(); it != sessions.end(); it++)
+    {
+        cout << it->first << ": [";
+        for(auto itl = (it->second).begin(); itl != (it->second).end(); itl++)
+        {
+            cout << (*itl).ipv4 << ":" << (*itl).port << ", ";
+        }
+        cout << "]\n";
+    }
+}
+
+void Server::print_active_notifications() 
+{
+    cout << active_notifications.size() << "\n";
+
+    for(auto it = active_notifications.begin(); it != active_notifications.end(); it++)
+    {
+        cout << it->id << "\n";
+        cout << it->author << "\n";
+        cout << it->body << "\n";
+        cout << "\n";
+    }
 }
 
 
@@ -162,7 +204,7 @@ vector<notification> Server::read_notifications(host_address addr)
 
     // signal producer
     pthread_cond_signal(&cond_notification_empty);
-    pthread_mutex_lock(&mutex_notification_sender);
+    pthread_mutex_unlock(&mutex_notification_sender);
 
     return notifications;
 }
@@ -214,14 +256,11 @@ ServerSocket::ServerSocket() : Socket(){
 void ServerSocket::connectNewClient(pthread_t *threadID, Server server){
 
     int *newsockfd = (int *) calloc(1, sizeof(int));
+    Socket *newClientSocket = (Socket *) calloc(1, sizeof(Socket));
 	socklen_t clilen;
 	struct sockaddr_in cli_addr;
     host_address client_address;
     string user;
-    bool sessionAvailable;
-    Socket newClientSocket;
-    Packet sessionResultPkt;
-
     
 
     // Accepting connection to start communicating
@@ -231,13 +270,14 @@ void ServerSocket::connectNewClient(pthread_t *threadID, Server server){
         //exit(1);
         return;
     }
+    newClientSocket = new Socket(*newsockfd);
 
     std::cout << "New connection estabilished on socket: " << *newsockfd << "\n\n";
-    newClientSocket = Socket(*newsockfd);
     
     // Verify if there are free sessions available
     // read client username from socket in 'user' var
-    Packet *userPacket = newClientSocket.readPacket();
+    Packet *userPacket = newClientSocket->readPacket();
+
     if (userPacket == NULL){
         std::cout << "Unable to read user information. Closing connection." << std::endl;
         return;     // destructor automatically closes the socket
@@ -247,21 +287,24 @@ void ServerSocket::connectNewClient(pthread_t *threadID, Server server){
 
     client_address.ipv4 = inet_ntoa(cli_addr.sin_addr);
     client_address.port = ntohs(cli_addr.sin_port);
-    sessionAvailable = server.try_to_start_session(user, client_address);
+    bool sessionAvailable = server.try_to_start_session(user, client_address);
 
+    server.print_users_unread_notifications();
+    
+    Packet sessionResultPkt;
     if (!sessionAvailable){
         sessionResultPkt = Packet(SESSION_OPEN_FAILED, "Unable to connect to server: no sessions available.");
-        newClientSocket.sendPacket(sessionResultPkt);
+        newClientSocket->sendPacket(sessionResultPkt);
         return; // destructor automatically closes the socket
     } else{
         sessionResultPkt = Packet(SESSION_OPEN_SUCCEDED, "Connection succeded! Session established.");
-        newClientSocket.sendPacket(sessionResultPkt);
+        newClientSocket->sendPacket(sessionResultPkt);
     }
-
+    
     // Build args
     communiction_handler_args *args = (communiction_handler_args *) calloc(1, sizeof(communiction_handler_args));
     args->client_address = client_address;
-    args->connectedSocket = *newsockfd;
+    args->connectedSocket = newClientSocket;
     args->user = user;
 
     pthread_create(threadID, NULL, Server::communicationHandler, (void *)args);
@@ -271,12 +314,12 @@ void ServerSocket::connectNewClient(pthread_t *threadID, Server server){
 void ServerSocket::bindAndListen(){
     
     if (bind(this->getSocketfd(), (struct sockaddr *) &this->serv_addr, sizeof(this->serv_addr)) < 0) {
-		printf("ERROR on binding");
+		cout << "ERROR on binding\n";
         exit(1);
     }
 	
 	listen(this->getSocketfd(), MAX_TCP_CONNECTIONS);
-	std::cout << "Listening...\n";
+	std::cout << "Listening..." << "\n\n";
 }
 
 
@@ -296,11 +339,11 @@ void *Server::communicationHandler(void *handlerArgs){
 
 void *Server::readCommandsHandler(void *handlerArgs){
 	struct communiction_handler_args *args = (struct communiction_handler_args *)handlerArgs;
-    Socket connectedSocket = Socket(args->connectedSocket);
 
     while(1){
 
-        Packet* receivedPacket = connectedSocket.readPacket();
+        //args->server.print_users_unread_notifications();
+        Packet* receivedPacket = args->connectedSocket->readPacket();
         if (receivedPacket == NULL){  // connection closed
             args->server.close_session(args->user, args->client_address);
             return NULL;
@@ -325,22 +368,25 @@ void *Server::readCommandsHandler(void *handlerArgs){
 
 void *Server::sendNotificationsHandler(void *handlerArgs){
     struct communiction_handler_args *args = (struct communiction_handler_args *)handlerArgs;
-    Socket connectedSocket = Socket(args->connectedSocket);
     vector<notification> notifications;
     Packet notificationPacket;
     int n;
 
+    cout << "debug 1\n\n"; 
     args->server.retrieve_notifications_from_offline_period(args->user, args->client_address);
+    cout << "debug 1\n\n";
 
     while(1) {
+        cout << "debug 2\n\n";
         notifications = args->server.read_notifications(args->client_address);
+        cout << "debug 2\n\n";
 
         for(auto it = std::begin(notifications); it != std::end(notifications); ++it) {
             
             notificationPacket = Packet(NOTIFICATION_PKT, (*it).timestamp, 
                                         (*it).body.c_str(), (*it).author.c_str());
 
-            n = connectedSocket.sendPacket(notificationPacket);
+            n = args->connectedSocket->sendPacket(notificationPacket);
             if (n<0){
                 args->server.close_session(args->user, args->client_address);
                 return NULL;
