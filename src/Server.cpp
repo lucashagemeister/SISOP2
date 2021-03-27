@@ -92,11 +92,11 @@ void Server::assign_notification_to_active_sessions(uint32_t notification_id, li
     cout << "\nAssigning new notification to active sessions...\n";
     print_users_unread_notifications();
     
+    pthread_mutex_lock(&mutex_notification_sender);
     for (auto user : followers)
     {
         if(user_is_active(user)) 
         {
-            pthread_mutex_lock(&mutex_notification_sender);
             for(auto address : sessions[user]) 
             {
                 //cout << "assigning " << address.ipv4 <<":"<< address.port << " notification " << notification_id <<"\n\n";
@@ -106,11 +106,15 @@ void Server::assign_notification_to_active_sessions(uint32_t notification_id, li
             list<uint32_t>::iterator it = find(users_unread_notifications[user].begin(), users_unread_notifications[user].end(), notification_id);
             users_unread_notifications[user].erase(it);
 
-            // signal consumer that will send to client
-            pthread_cond_signal(&cond_notification_full);
-            pthread_mutex_unlock(&mutex_notification_sender);
+            // signal as many consumers to send to clients as pending users times possible sessions
+            for(int i = 0; i < followers.size()*2; i++)
+            {
+                pthread_cond_signal(&cond_notification_full);
+
+            }
         }
     }
+    pthread_mutex_unlock(&mutex_notification_sender);
     print_active_users_unread_notifications();
 
 }
@@ -140,6 +144,76 @@ void Server::retrieve_notifications_from_offline_period(string user, host_addres
     pthread_mutex_unlock(&mutex_notification_sender);
     print_active_users_unread_notifications();
 }
+
+
+// call this function on consumer thread that will feed the user with its notifications
+void Server::read_notifications(host_address addr, vector<notification>* notifications) 
+{
+    pthread_mutex_lock(&mutex_notification_sender);
+    
+    cout << "Reading notifications...\n";
+    while (active_users_pending_notifications[addr].empty()) { 
+        // sleep while user doesn't have notifications to read
+        cout << "No notifications for address " << addr.ipv4 <<":"<< addr.port << ". Sleeping...\n";
+        pthread_cond_wait(&cond_notification_full, &mutex_notification_sender); 
+    }
+    cout << "Assembling notifications...\n";
+    while(!active_users_pending_notifications[addr].empty()) 
+    {
+        uint32_t notification_id = (active_users_pending_notifications[addr]).top();
+        for(auto notif : active_notifications)
+        {
+            if(notif.id == notification_id)
+            {
+                notifications->push_back(notif);
+                break;
+            }
+        }
+        
+        (active_users_pending_notifications[addr]).pop();
+    }
+
+    // signal producer
+    pthread_cond_signal(&cond_notification_empty);
+    pthread_cond_signal(&cond_notification_full); // waking someone again can improve client consuming flow
+    pthread_mutex_unlock(&mutex_notification_sender);
+
+}
+
+
+// call this function when client presses ctrl+c or ctrl+d
+void Server::close_session(string user, host_address address) 
+{
+    pthread_mutex_lock(&mutex_session);
+    
+    list<host_address>::iterator it = find(sessions[user].begin(), sessions[user].end(), address);
+    if(it != sessions[user].end()) // remove address from sessions map and < (ip, port), notification to send > 
+    {
+        sessions[user].erase(it);
+        active_users_pending_notifications.erase(address);
+
+        // signal semaphore
+        sem_post(&(user_sessions_semaphore[user]));
+    }
+    pthread_mutex_unlock(&mutex_session);
+    print_sessions();
+}
+
+
+void Server::follow_user(string user, string user_to_follow)
+{
+    pthread_mutex_lock(&follow_mutex);
+
+    if (find(followers[user_to_follow].begin(), followers[user_to_follow].end(), user) == followers[user_to_follow].end())
+    {
+        followers[user_to_follow].push_back(user);
+    }
+
+    pthread_mutex_unlock(&follow_mutex);
+    print_followers();
+}
+
+
 
 
 void Server::print_users_unread_notifications() 
@@ -211,76 +285,6 @@ void Server::print_followers()
         cout << "]\n";
     }
 }
-
-
-// call this function on consumer thread that will feed the user with its notifications
-void Server::read_notifications(host_address addr, vector<notification>* notifications) 
-{
-    pthread_mutex_lock(&mutex_notification_sender);
-    
-    cout << "Reading notifications...\n";
-    while (active_users_pending_notifications[addr].empty()) { 
-        // sleep while user doesn't have notifications to read
-        cout << "No notifications for address " << addr.ipv4 <<":"<< addr.port << ". Sleeping...\n";
-        pthread_cond_wait(&cond_notification_full, &mutex_notification_sender); 
-    }
-    cout << "Assembling notifications...\n";
-    while(!active_users_pending_notifications[addr].empty()) 
-    {
-        uint32_t notification_id = (active_users_pending_notifications[addr]).top();
-        for(auto notif : active_notifications)
-        {
-            if(notif.id == notification_id)
-            {
-                notifications->push_back(notif);
-                break;
-            }
-        }
-        
-        (active_users_pending_notifications[addr]).pop();
-    }
-
-    // signal producer
-    pthread_cond_signal(&cond_notification_empty);
-    pthread_cond_signal(&cond_notification_full); // testing if waking someone again will improve client flow without messing shit up
-    pthread_mutex_unlock(&mutex_notification_sender);
-
-}
-
-
-// call this function when client presses ctrl+c or ctrl+d
-void Server::close_session(string user, host_address address) 
-{
-    pthread_mutex_lock(&mutex_session);
-    
-    list<host_address>::iterator it = find(sessions[user].begin(), sessions[user].end(), address);
-    if(it != sessions[user].end()) // remove address from sessions map and < (ip, port), notification to send > 
-    {
-        sessions[user].erase(it);
-        active_users_pending_notifications.erase(address);
-
-        // signal semaphore
-        sem_post(&(user_sessions_semaphore[user]));
-    }
-    pthread_mutex_unlock(&mutex_session);
-    print_sessions();
-}
-
-
-void Server::follow_user(string user, string user_to_follow)
-{
-    pthread_mutex_lock(&follow_mutex);
-
-    if (find(followers[user_to_follow].begin(), followers[user_to_follow].end(), user) == followers[user_to_follow].end())
-    {
-        followers[user_to_follow].push_back(user);
-    }
-
-    pthread_mutex_unlock(&follow_mutex);
-    print_followers();
-}
-
-
 
 
 
@@ -414,7 +418,6 @@ void *Server::readCommandsHandler(void *handlerArgs){
 void *Server::sendNotificationsHandler(void *handlerArgs)
 {
     struct communiction_handler_args *args = (struct communiction_handler_args *)handlerArgs;
-    vector<notification> notifications = vector<notification>();
     Packet notificationPacket;
     int n;
 
@@ -423,10 +426,9 @@ void *Server::sendNotificationsHandler(void *handlerArgs)
     args->server->print_users_unread_notifications();
 
     while(1)
-    {
-        /*
-        args->connectedSocket->sendPacket(Packet(MESSAGE_PKT, "quem mutex sempre alcança\n"));
-        */
+    {    
+        vector<notification> notifications;
+
         args->server->read_notifications(args->client_address, &notifications);
         for(auto it = std::begin(notifications); it != std::end(notifications); ++it)
         {        
