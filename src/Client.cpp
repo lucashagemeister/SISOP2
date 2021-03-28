@@ -179,12 +179,12 @@ void *Client::do_threadSender(void* arg){
             
         if (command.compare("FOLLOW") == 0) {
             client->executeFollowCommand();
-            cout << "Done!\n";
+            //cout << "Done!\n";
         }
             
         else if (command.compare("SEND") == 0) {
             client->executeSendCommand();
-            cout << "Done!\n";
+            //cout << "Done!\n";
             client->cleanBuffer();
         }
 
@@ -217,7 +217,7 @@ void *Client::do_threadReceiver(void* arg){
                 readPacket = NULL;
             }
             else if (readPacket->getType() == MESSAGE_PKT){
-                cout << "\nMessage from server: " << readPacket->getPayload() << "\n";
+                cout << "\n" << readPacket->getPayload() << "\n\n";
             }
         pthread_mutex_unlock(&(client->mutex_print));
     }
