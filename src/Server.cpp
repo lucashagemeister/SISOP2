@@ -391,6 +391,9 @@ void *Server::communicationHandler(void *handlerArgs){
 void *Server::readCommandsHandler(void *handlerArgs){
 	struct communiction_handler_args *args = (struct communiction_handler_args *)handlerArgs;
 
+    string userToFollow;
+    string response;
+
     while(1){
         Packet* receivedPacket = args->connectedSocket->readPacket();
         if (receivedPacket == NULL){  // connection closed
@@ -402,11 +405,16 @@ void *Server::readCommandsHandler(void *handlerArgs){
         switch(receivedPacket->getType()){
 
             case COMMAND_FOLLOW_PKT:
-                args->server->follow_user(args->user, receivedPacket->getPayload());
+                userToFollow = receivedPacket->getPayload();
+                response = "Followed "+userToFollow+"!";
+
+                args->server->follow_user(args->user, userToFollow);
+                args->connectedSocket->sendPacket(Packet(MESSAGE_PKT, response.c_str()));
                 break;
 
             case COMMAND_SEND_PKT:
                 args->server->create_notification(args->user, receivedPacket->getPayload(), receivedPacket->getTimestamp());
+                args->connectedSocket->sendPacket(Packet(MESSAGE_PKT, "Notification sent!"));
                 break;
 
             default:

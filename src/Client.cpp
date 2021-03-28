@@ -179,17 +179,17 @@ void *Client::do_threadSender(void* arg){
             
         if (command.compare("FOLLOW") == 0) {
             client->executeFollowCommand();
-            cout << "FOLLOW command sent to server!\n\n";
+            cout << "Done!\n";
         }
             
         else if (command.compare("SEND") == 0) {
             client->executeSendCommand();
-            cout << "SEND command sent to server!\n\n";
+            cout << "Done!\n";
             client->cleanBuffer();
         }
 
         else 
-            cout << "Command not found! Aborting...\n\n";
+            cout << "Command not found! Aborting...\n";
 
         
         //FIM DA SECAO CRITICA
