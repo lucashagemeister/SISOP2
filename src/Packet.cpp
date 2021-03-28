@@ -45,8 +45,8 @@ Packet::Packet(uint16_t type, time_t timestamp, char const *payload, char const 
     } 
 
     uint16_t authorLength = strlen(author);
-    if (payloadLength > MAX_AUTHOR_LENGTH) {
-        std::cout << "ERROR author exceeded maximum length\n" << payload << std::endl;
+    if (authorLength > MAX_AUTHOR_LENGTH) {
+        std::cout << "ERROR author exceeded maximum length\n" << author << std::endl;
         exit(1);
     } 
 
@@ -107,4 +107,14 @@ void Packet::setPayload(char* const payload){
 
     strcpy(this->payload, payload);
     this->length = payloadLength;
+}
+void Packet::setAuthor(char* const author){
+
+    uint16_t authorLength = strlen(author);
+    if (authorLength > MAX_AUTHOR_LENGTH) {
+        std::cout << "ERROR author exceeded maximum length\n" << payload << std::endl;
+        exit(1);
+    } 
+
+    strcpy(this->author, author);
 }

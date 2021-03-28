@@ -7,6 +7,13 @@
 #include "Socket.hpp"
 
 
+class ClientSocket : public Socket {
+	public:
+		void connectToServer();
+		void connectToServer(const char* serverAddress, int serverPort);
+};
+
+
 class Client{
 public:
     

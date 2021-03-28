@@ -53,14 +53,6 @@ void Client::cleanBuffer(void) {
 
 }
 
-std::string skipReceiverMode()
-{
-   // std::cout << "VOCE TEM 5 SEGUNDOS PARA DAR ENTER E SAIR DO RECEIVER\n";
-    std::string inputToSkipReceiverMode;
-    std::getline(std::cin, inputToSkipReceiverMode);
-    return inputToSkipReceiverMode;
-}
-
 void Client::executeSendCommand() {
     list<string> message; //mensagem vai ser uma lista de linhas
     string line;
@@ -99,7 +91,7 @@ void Client::executeSendCommand() {
 
 
 void Client::executeFollowCommand() {
-    string person;
+    string person = "";
     char c;
     int characters = 0;
     int flagSpaces = 0;
@@ -142,18 +134,20 @@ void *Client::controlThread(void* arg){
     tv.tv_sec = 0;
     tv.tv_usec = 0;
 
+    
+
     while(true){
         pthread_mutex_lock(&(client->mutex_control));
-        retval = select(1, &rfds, NULL, NULL, &tv);
         rfds = save_rfds;
-
+        retval = select(1, &rfds, NULL, NULL, &tv);
+        
 
         if (retval){   // User hitted Enter key
             pthread_mutex_unlock(&(client->mutex_control));
             pthread_mutex_unlock(&(client->mutex_input));
             sleep(2);  // waits threadSender get the mutex
 
-            pthread_mutex_lock(&(client->mutex_control)); // waits sender free mutex
+            pthread_mutex_lock(&(client->mutex_control)); // waits sender free mutex to continue monitoring for Enter hits
         }
 
         pthread_mutex_unlock(&(client->mutex_control));
@@ -183,16 +177,21 @@ void *Client::do_threadSender(void* arg){
         } while (c != LF && c!= ' ');
         command.pop_back(); //remover o LF do final do comando
             
-        if (command.compare("FOLLOW") == 0) 
+        if (command.compare("FOLLOW") == 0) {
             client->executeFollowCommand();
+            cout << "FOLLOW command sent to server!\n\n";
+        }
             
-        else if (command.compare("SEND") == 0) 
+        else if (command.compare("SEND") == 0) {
             client->executeSendCommand();
+            cout << "SEND command sent to server!\n\n";
+            client->cleanBuffer();
+        }
 
         else 
-            cout << "Command not found! Aborting...\n" << endl;
+            cout << "Command not found! Aborting...\n\n";
 
-        client->cleanBuffer();
+        
         //FIM DA SECAO CRITICA
         pthread_mutex_unlock(&(client->mutex_print));
         pthread_mutex_unlock(&(client->mutex_control));
@@ -222,4 +221,40 @@ void *Client::do_threadReceiver(void* arg){
             }
         pthread_mutex_unlock(&(client->mutex_print));
     }
+}
+
+
+void ClientSocket::connectToServer(){
+    struct sockaddr_in serv_addr;
+    struct hostent *server;
+	server = gethostbyname(SERVER_ADDR);
+
+    serv_addr.sin_family = AF_INET;     
+	serv_addr.sin_port = htons(PORT);    
+	serv_addr.sin_addr = *((struct in_addr *)server->h_addr);
+	bzero(&(serv_addr.sin_zero), 8);     
+	
+
+	if (connect(this->getSocketfd(),(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) {
+        printf("ERROR connecting\n");
+        exit(1);
+    }        
+}
+
+void ClientSocket::connectToServer(const char* serverAddress, int serverPort){
+    struct sockaddr_in serv_addr;
+    struct hostent *server;
+	server = gethostbyname(serverAddress);
+    
+
+    serv_addr.sin_family = AF_INET;     
+	serv_addr.sin_port = htons(serverPort);    
+	serv_addr.sin_addr = *((struct in_addr *)server->h_addr);
+    bzero(&(serv_addr.sin_zero), 8);
+	
+
+	if (connect(this->getSocketfd(),(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) {
+        printf("ERROR establishing connection\n");
+        exit(1);
+    }   
 }

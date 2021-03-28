@@ -36,6 +36,7 @@ class Packet {
         void setSeqn(uint16_t seqn);
         void setTimestamp(time_t timestamp);
         void setPayload(char* payload);
+        void setAuthor(char* author);
 };
 
 

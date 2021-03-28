@@ -48,11 +48,5 @@ class Socket
 		~Socket();
 };
 
-class ClientSocket : public Socket {
-	public:
-		void connectToServer();
-		void connectToServer(const char* serverAddress, int serverPort);
-};
-
 
 #endif
