@@ -67,22 +67,23 @@ void Server::create_notification(string user, string body, time_t timestamp)
 {
     cout << "\nNew notification!\n";
     pthread_mutex_lock(&follower_count_mutex);
+    if (followers[user].size() > 0)
+    {
+        uint16_t pending_users{0};
+        for (auto follower : followers[user])
+        {                    
+            pthread_mutex_lock(&mutex_notification_sender);
+            users_unread_notifications[follower].push_back(notification_id_counter);
+            pthread_mutex_unlock(&mutex_notification_sender);
 
-    uint16_t pending_users{0};
-    for (auto follower : followers[user])
-    {                    
-        pthread_mutex_lock(&mutex_notification_sender);
-        users_unread_notifications[follower].push_back(notification_id_counter);
-        pthread_mutex_unlock(&mutex_notification_sender);
+            pending_users++;
+        }
 
-        pending_users++;
+        notification notif(notification_id_counter, user, timestamp, body, body.length(), pending_users);
+        active_notifications.push_back(notif);
+        assign_notification_to_active_sessions(notification_id_counter, followers[user]);
+        notification_id_counter += 1;
     }
-
-    notification notif(notification_id_counter, user, timestamp, body, body.length(), pending_users);
-    active_notifications.push_back(notif);
-    assign_notification_to_active_sessions(notification_id_counter, followers[user]);
-    notification_id_counter += 1;
-
     pthread_mutex_unlock(&follower_count_mutex);
 }
 
@@ -202,14 +203,14 @@ void Server::close_session(string user, host_address address)
 
 void Server::follow_user(string user, string user_to_follow)
 {
-    pthread_mutex_lock(&follow_mutex);
+    pthread_mutex_lock(&follower_count_mutex);
 
     if (find(followers[user_to_follow].begin(), followers[user_to_follow].end(), user) == followers[user_to_follow].end())
     {
         followers[user_to_follow].push_back(user);
     }
 
-    pthread_mutex_unlock(&follow_mutex);
+    pthread_mutex_unlock(&follower_count_mutex);
     //print_followers();
 }
 
