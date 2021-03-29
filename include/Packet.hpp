@@ -22,8 +22,7 @@ class Packet {
         Packet();
         Packet(uint16_t type, char const *payload);   // Get the timestamp when initializing the object
         Packet(uint16_t type, time_t timestamp, char const *payload);   
-        Packet(uint16_t type, time_t timestamp, char const *payload, char const *author);   
-        Packet(uint16_t type, uint16_t seqn, time_t timestamp);
+        Packet(uint16_t type, time_t timestamp, char const *payload, char const *author); // If it's a notification
 
 		uint16_t getType();
 		uint16_t getSeqn();

@@ -54,7 +54,7 @@ void Client::cleanBuffer(void) {
 }
 
 void Client::executeSendCommand() {
-    list<string> message; //mensagem vai ser uma lista de linhas
+    list<string> message; //message is a list of lines
     string line;
     char c;
     int characters = 0;
@@ -72,8 +72,8 @@ void Client::executeSendCommand() {
 
         } while (c != '@' && characters <= MAX_NOTIFICATION_LENGTH + 1);
         if (c == '@') {
-            line.pop_back(); //remover o "@" da mensagem, pois ele eh soh um sinalizador de fim de mensagem
-            message.push_back(line);	//pegar última linha da mensagem                
+            line.pop_back(); // remove the '@' sinalizer character from the message
+            message.push_back(line);	// get the last message line                
         }
 
         // Implode list of strings into single string
@@ -145,9 +145,9 @@ void *Client::controlThread(void* arg){
         if (retval){   // User hitted Enter key
             pthread_mutex_unlock(&(client->mutex_control));
             pthread_mutex_unlock(&(client->mutex_input));
-            sleep(2);  // waits threadSender get the mutex
+            sleep(2);  // Waits threadSender get the mutex
 
-            pthread_mutex_lock(&(client->mutex_control)); // waits sender free mutex to continue monitoring for Enter hits
+            pthread_mutex_lock(&(client->mutex_control)); // Waits sender free mutex to continue monitoring for Enter hits
         }
 
         pthread_mutex_unlock(&(client->mutex_control));

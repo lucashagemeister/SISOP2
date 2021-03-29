@@ -60,13 +60,6 @@ Packet::Packet(uint16_t type, time_t timestamp, char const *payload, char const 
 
 
 
-// Useful when it receives a header while reading socket
-Packet::Packet(uint16_t type, uint16_t seqn, time_t timestamp){
-    this->type = type;
-    this->seqn = seqn;
-    this->timestamp = timestamp;
-}
-
 
 uint16_t Packet::getType(){
     return this->type;

@@ -52,7 +52,6 @@ bool Server::try_to_start_session(string user, host_address address)
         active_users_pending_notifications.insert({address, priority_queue<uint32_t, vector<uint32_t>, greater<uint32_t>>()});
     }
     pthread_mutex_unlock(&mutex_session); // Fim SC
-    //print_sessions();
     return session_started == 0; 
 }
 
@@ -91,7 +90,6 @@ void Server::create_notification(string user, string body, time_t timestamp)
 void Server::assign_notification_to_active_sessions(uint32_t notification_id, list<string> followers) 
 {
     cout << "\nAssigning new notification to active sessions...\n";
-    //print_users_unread_notifications();
     
     pthread_mutex_lock(&mutex_notification_sender);
     for (auto user : followers)
@@ -116,7 +114,6 @@ void Server::assign_notification_to_active_sessions(uint32_t notification_id, li
         }
     }
     pthread_mutex_unlock(&mutex_notification_sender);
-    //print_active_users_unread_notifications();
 
 }
 
@@ -143,7 +140,6 @@ void Server::retrieve_notifications_from_offline_period(string user, host_addres
     // signal consumer
     pthread_cond_signal(&cond_notification_full);
     pthread_mutex_unlock(&mutex_notification_sender);
-    //print_active_users_unread_notifications();
 }
 
 
@@ -197,7 +193,6 @@ void Server::close_session(string user, host_address address)
         sem_post(&(user_sessions_semaphore[user]));
     }
     pthread_mutex_unlock(&mutex_session);
-    //print_sessions();
 }
 
 
@@ -211,7 +206,6 @@ void Server::follow_user(string user, string user_to_follow)
     }
 
     pthread_mutex_unlock(&follower_count_mutex);
-    //print_followers();
 }
 
 
@@ -312,7 +306,6 @@ void ServerSocket::connectNewClient(pthread_t *threadID, Server* server){
     clilen = sizeof(struct sockaddr_in);
     if ((*newsockfd = accept(this->getSocketfd(), (struct sockaddr *) &cli_addr, &clilen)) == -1) {
         std::cout << "ERROR on accepting client connection" << std::endl;
-        //exit(1);
         return;
     }
     newClientSocket = new Socket(*newsockfd);
@@ -334,8 +327,6 @@ void ServerSocket::connectNewClient(pthread_t *threadID, Server* server){
     client_address.port = ntohs(cli_addr.sin_port);
     bool sessionAvailable = server->try_to_start_session(user, client_address);
 
-    //server->print_sessions();
-    //server->print_users_unread_notifications();
     
     Packet sessionResultPkt;
     if (!sessionAvailable){
@@ -355,7 +346,6 @@ void ServerSocket::connectNewClient(pthread_t *threadID, Server* server){
     args->server = server;
 
     pthread_create(threadID, NULL, Server::communicationHandler, (void *)args);
-    //pthread_join(*threadID, NULL);
 }
 
 
@@ -430,10 +420,7 @@ void *Server::sendNotificationsHandler(void *handlerArgs)
     Packet notificationPacket;
     int n;
 
-    //args->server->print_users_unread_notifications();
     args->server->retrieve_notifications_from_offline_period(args->user, args->client_address);
-    //args->server->print_users_unread_notifications();
-
     while(1)
     {    
         vector<notification> notifications;
