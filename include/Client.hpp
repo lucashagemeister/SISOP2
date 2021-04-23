@@ -4,13 +4,14 @@
 #include <pthread.h>
 #include <string>
 #include <list>
+#include <vector>
 #include "Socket.hpp"
 
 
 class ClientSocket : public Socket {
 	public:
-		void connectToServer();
-		void connectToServer(const char* serverAddress, int serverPort);
+		bool connectToServer();
+		bool connectToServer(const char* serverAddress, int serverPort);
 };
 
 
@@ -35,7 +36,8 @@ public:
 	void cleanBuffer(void);
 	void executeSendCommand();
 	void executeFollowCommand();
-    void establishConnection();
+    void establishConnection(bool reestablishingConnection);
+    void connectToPrimaryServer(bool reestablishingConnection);
 
 };
 

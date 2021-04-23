@@ -7,13 +7,23 @@ enum{
     COMMAND_SEND_PKT,           // User wants to send a notification
     USER_INFO_PKT,              // Sends a username in the payload
     SESSION_OPEN_SUCCEDED,      // When server could connect client to a session
-    SESSION_OPEN_FAILED         // When server could not connect client to a session
+    SESSION_OPEN_FAILED,        // When server could not connect client to a session
+    ALREADY_PRIMARY,            // Message to confirm that client is already connected to primary server
+    CURRENT_PRIMARY             // Message containing who's the current primary server
 };
 #endif
 
-#ifndef PORT
-#define PORT 4000
+
+#ifndef PORT_BAND
+#define PORT_BAND
+enum{
+    PORT = 4000,    // Primary server in normal situations
+    PORT1,          // Backup 1
+    PORT2,          // Backup 2
+    PORT3           // Backup 3
+};
 #endif
+
 
 #ifndef MAX_PAYLOAD_LENGTH
 #define MAX_PAYLOAD_LENGTH 256

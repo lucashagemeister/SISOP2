@@ -10,7 +10,7 @@ Client::Client(string user, int serverPort, string serverAddress){
     this->serverPort = serverPort;
     this->serverAddress = serverAddress;
     this->user = user;
-    this->establishConnection();
+    this->establishConnection(false);
 
     pthread_mutex_init(&mutex_print, NULL);
     pthread_mutex_init(&mutex_input, NULL);
@@ -19,10 +19,13 @@ Client::Client(string user, int serverPort, string serverAddress){
     pthread_mutex_lock(&mutex_input);
 }
 
-void Client::establishConnection(){
+void Client::establishConnection(bool reestablishingConnection){
 
-    this->socket.connectToServer(this->serverAddress.c_str(), this->serverPort);
-    std::cout << "Connected to server! Trying to send packet with user info..." << "\n\n";
+    this->connectToPrimaryServer(reestablishingConnection); // Exits if fails to connect
+
+    if(!reestablishingConnection)
+        cout << "Connected to server! Trying to send packet with user info..." << "\n\n";
+
     // Send user information to initiate session
     Packet userInfoPacket = Packet(USER_INFO_PKT, this->user.c_str());
     this->socket.sendPacket(userInfoPacket);
@@ -40,10 +43,64 @@ void Client::establishConnection(){
             exit(1);
 
     } else {
-        cout << "Server did not respond, aborting..." << endl;
+        if(reestablishingConnection)
+            cout << "ERROR lost connection to server!\n";
+        else
+            cout << "Server did not respond, aborting...\n";
+            
         exit(1);
     }
 }
+
+
+void Client::connectToPrimaryServer(bool reestablishingConnection){
+
+    if(!reestablishingConnection)
+        cout << "Trying to connect to server...\n\n";
+    
+    // TO-DO: ACHO QUE NO FUTURO É MELHOR NÃO ASSUMIR QUE AS RÉPLICAS TÃO NO MESMO ENDEREÇO, MAS SEI LÁ TEM QUE PERGUNTAR PRO WEVERTON
+    vector<int> possiblePorts { PORT, PORT1, PORT2, PORT3 };
+    int i = 0;
+    while (!(this->socket.connectToServer(this->serverAddress.c_str(), possiblePorts[i])) && (i <= possiblePorts.size())){
+
+        if (i == possiblePorts.size()){
+            if(reestablishingConnection)
+                cout << "ERROR lost connection to server!\n";
+            else
+                cout << "ERROR all servers seem to be down! Aborting...\n";
+            exit(1);
+        }
+        i++;
+    }
+    
+    // Wait for server message telling who's the primary server
+    Packet *primaryServerIpAddress;
+    primaryServerIpAddress = this->socket.readPacket();
+
+    if (primaryServerIpAddress->getType() == ALREADY_PRIMARY)
+        return;
+    
+    //else
+    this->serverAddress = primaryServerIpAddress->getPayload();
+
+    Packet *primaryServerPort;
+    primaryServerPort = this->socket.readPacket();
+
+    this->serverPort = atoi(primaryServerPort->getPayload());
+    
+    // Closes connection and reopen socket to connect to the primary server
+    close(this->socket.getSocketfd());
+    this->socket = ClientSocket();
+
+    if (!this->socket.connectToServer(this->serverAddress.c_str(), this->serverPort)){
+        if(reestablishingConnection)
+            cout << "ERROR lost connection to server!\n";
+        else
+            cout << "ERROR while connecting to primary server!\n";
+        exit(1); 
+    }
+}
+
 
 
 void Client::cleanBuffer(void) {
@@ -224,7 +281,8 @@ void *Client::do_threadReceiver(void* arg){
 }
 
 
-void ClientSocket::connectToServer(){
+
+bool ClientSocket::connectToServer(){
     struct sockaddr_in serv_addr;
     struct hostent *server;
 	server = gethostbyname(SERVER_ADDR);
@@ -236,12 +294,14 @@ void ClientSocket::connectToServer(){
 	
 
 	if (connect(this->getSocketfd(),(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) {
-        printf("ERROR connecting\n");
-        exit(1);
+        //printf("ERROR connecting\n");
+        //exit(1);
+        return false;
     }        
+    return true;
 }
 
-void ClientSocket::connectToServer(const char* serverAddress, int serverPort){
+bool ClientSocket::connectToServer(const char* serverAddress, int serverPort){
     struct sockaddr_in serv_addr;
     struct hostent *server;
 	server = gethostbyname(serverAddress);
@@ -254,7 +314,9 @@ void ClientSocket::connectToServer(const char* serverAddress, int serverPort){
 	
 
 	if (connect(this->getSocketfd(),(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) {
-        printf("ERROR establishing connection\n");
-        exit(1);
+        //printf("ERROR establishing connection\n");
+        //exit(1);
+        return false;
     }   
+    return true;
 }
