@@ -10,7 +10,7 @@ Client::Client(string user, int serverPort, string serverAddress){
     this->serverPort = serverPort;
     this->serverAddress = serverAddress;
     this->user = user;
-    this->establishConnection(false);
+    this->establishConnection();
 
     pthread_mutex_init(&mutex_print, NULL);
     pthread_mutex_init(&mutex_input, NULL);
@@ -19,12 +19,12 @@ Client::Client(string user, int serverPort, string serverAddress){
     pthread_mutex_lock(&mutex_input);
 }
 
-void Client::establishConnection(bool reestablishingConnection){
+void Client::establishConnection(){
 
-    this->connectToPrimaryServer(reestablishingConnection); // Exits if fails to connect
+    this->connectToPrimaryServer(false);  // exit(1) if fails to connect
+    this->originalClientPort = this->socket.getSocketfd(); 
 
-    if(!reestablishingConnection)
-        cout << "Connected to server! Trying to send packet with user info..." << "\n\n";
+    cout << "Connected to server! Trying to send packet with user info..." << "\n\n";
 
     // Send user information to initiate session
     Packet userInfoPacket = Packet(USER_INFO_PKT, this->user.c_str());
@@ -43,13 +43,18 @@ void Client::establishConnection(bool reestablishingConnection){
             exit(1);
 
     } else {
-        if(reestablishingConnection)
-            cout << "ERROR lost connection to server!\n";
-        else
-            cout << "Server did not respond, aborting...\n";
-            
+        cout << "Server did not respond, aborting...\n";    
         exit(1);
     }
+}
+
+void Client::reestablishConnection(){
+    
+    this->connectToPrimaryServer(true);  // exit(1) if fails to connect
+
+    // Send user information to initiate session
+    Packet userInfoPacket = Packet(USER_INFO_RECONNECT, this->user.c_str());
+    this->socket.sendPacket(userInfoPacket);
 }
 
 
@@ -58,7 +63,6 @@ void Client::connectToPrimaryServer(bool reestablishingConnection){
     if(!reestablishingConnection)
         cout << "Trying to connect to server...\n\n";
     
-    // TO-DO: ACHO QUE NO FUTURO É MELHOR NÃO ASSUMIR QUE AS RÉPLICAS TÃO NO MESMO ENDEREÇO, MAS SEI LÁ TEM QUE PERGUNTAR PRO WEVERTON
     vector<int> possiblePorts { PORT, PORT1, PORT2, PORT3 };
     int i = 0;
     while (!(this->socket.connectToServer(this->serverAddress.c_str(), possiblePorts[i])) && (i <= possiblePorts.size())){
@@ -141,8 +145,14 @@ void Client::executeSendCommand() {
         
         int n = this->socket.sendPacket(Packet(COMMAND_SEND_PKT, completeNotification.c_str()));
         if (n<0){
-            cout << "Connection lost. Exiting..." << "\n\n";
-            exit(1);
+            this->reestablishConnection();
+
+            // Try once more with the new connection
+            n = this->socket.sendPacket(Packet(COMMAND_SEND_PKT, completeNotification.c_str()));
+            if (n<0){
+                cout << "Connection lost. Exiting..." << "\n\n";
+                exit(1);
+            }
         }
 }
 
@@ -264,8 +274,8 @@ void *Client::do_threadReceiver(void* arg){
     while (true) {    
         
         readPacket = client->socket.readPacket();
-        if (readPacket == NULL)
-            exit(1);  // Connection lost
+        if (readPacket == NULL) // Connection lost
+            client->reestablishConnection();  
 
         pthread_mutex_lock(&(client->mutex_print));
             if (readPacket->getType() == NOTIFICATION_PKT){
@@ -293,11 +303,9 @@ bool ClientSocket::connectToServer(){
 	bzero(&(serv_addr.sin_zero), 8);     
 	
 
-	if (connect(this->getSocketfd(),(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) {
-        //printf("ERROR connecting\n");
-        //exit(1);
+	if (connect(this->getSocketfd(),(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0)
         return false;
-    }        
+       
     return true;
 }
 
@@ -313,10 +321,8 @@ bool ClientSocket::connectToServer(const char* serverAddress, int serverPort){
     bzero(&(serv_addr.sin_zero), 8);
 	
 
-	if (connect(this->getSocketfd(),(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) {
-        //printf("ERROR establishing connection\n");
-        //exit(1);
+	if (connect(this->getSocketfd(),(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) 
         return false;
-    }   
+    
     return true;
 }

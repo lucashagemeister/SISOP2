@@ -19,6 +19,8 @@ class Client{
 public:
     
     string user;
+    int originalClientPort;  // Required to inform in a reconnection which port it was firstly running, 
+                             // which is an information used to control sessions.
     int serverPort;
     string serverAddress;
     ClientSocket socket;
@@ -36,7 +38,8 @@ public:
 	void cleanBuffer(void);
 	void executeSendCommand();
 	void executeFollowCommand();
-    void establishConnection(bool reestablishingConnection);
+    void establishConnection();
+    void reestablishConnection();
     void connectToPrimaryServer(bool reestablishingConnection);
 
 };

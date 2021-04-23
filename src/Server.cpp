@@ -311,6 +311,12 @@ void ServerSocket::connectNewClient(pthread_t *threadID, Server* server){
     newClientSocket = new Socket(*newsockfd);
 
     std::cout << "New connection estabilished on socket: " << *newsockfd << "\n\n";
+
+
+    // IMPLEMENT HERE THE PART WHERE SERVER INFORMS CLIENT WHO IS THE PRIMARY SERVER
+    // if me send packet "ALREADY_PRIMARY"
+    // if not me send packet MESSAGE "127.0.0.1"
+    //  send another packet <PORT OF PRIMARY>
     
     // Verify if there are free sessions available
     // read client username from socket in 'user' var
@@ -322,20 +328,21 @@ void ServerSocket::connectNewClient(pthread_t *threadID, Server* server){
     } else 
         user = userPacket->getPayload();
     
-
-    client_address.ipv4 = inet_ntoa(cli_addr.sin_addr);
-    client_address.port = ntohs(cli_addr.sin_port);
-    bool sessionAvailable = server->try_to_start_session(user, client_address);
+    if (userPacket->getType() == USER_INFO_PKT){
+        client_address.ipv4 = inet_ntoa(cli_addr.sin_addr);
+        client_address.port = ntohs(cli_addr.sin_port);
+        bool sessionAvailable = server->try_to_start_session(user, client_address);
 
     
-    Packet sessionResultPkt;
-    if (!sessionAvailable){
-        sessionResultPkt = Packet(SESSION_OPEN_FAILED, "Unable to connect to server: no sessions available.");
-        newClientSocket->sendPacket(sessionResultPkt);
-        return; // destructor automatically closes the socket
-    } else{
-        sessionResultPkt = Packet(SESSION_OPEN_SUCCEDED, "Connection succeded! Session established.");
-        newClientSocket->sendPacket(sessionResultPkt);
+        Packet sessionResultPkt;
+        if (!sessionAvailable){
+            sessionResultPkt = Packet(SESSION_OPEN_FAILED, "Unable to connect to server: no sessions available.");
+            newClientSocket->sendPacket(sessionResultPkt);
+            return; // destructor automatically closes the socket
+        } else{
+            sessionResultPkt = Packet(SESSION_OPEN_SUCCEDED, "Connection succeded! Session established.");
+            newClientSocket->sendPacket(sessionResultPkt);
+        }
     }
     
     // Build args

@@ -9,7 +9,8 @@ enum{
     SESSION_OPEN_SUCCEDED,      // When server could connect client to a session
     SESSION_OPEN_FAILED,        // When server could not connect client to a session
     ALREADY_PRIMARY,            // Message to confirm that client is already connected to primary server
-    CURRENT_PRIMARY             // Message containing who's the current primary server
+    CURRENT_PRIMARY,            // Message containing who's the current primary server
+    USER_INFO_RECONNECT         // Client message to inform the user it has a session opened before primary went down
 };
 #endif
 
