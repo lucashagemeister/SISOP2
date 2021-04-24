@@ -41,10 +41,11 @@ typedef struct __notification {
 class Server
 {
 public:
-    Server();
+    Server(int port);
     Server(host_address addr);
     string ip; 
     int port;
+    std::vector<int> possibleServerPeerPorts; 
 
     bool try_to_start_session(string user, host_address address);
     void follow_user(string user, string user_to_follow);
@@ -52,6 +53,10 @@ public:
     void close_session(string user, host_address address);
     void retrieve_notifications_from_offline_period(string user, host_address addr);
     void read_notifications(host_address addr, vector<notification>* notifications);
+
+
+    void connectToGroupMembers(ServerSocket serverSocket);
+    bool connectToMember(sockaddr_in serv_addr);
 
     static void *communicationHandler(void *handlerArgs);
     static void *readCommandsHandler(void *handlerArgs);

@@ -2,8 +2,18 @@
 
 using namespace std;
 
-Server::Server()
+Server::Server(int port)
 {
+    this->port = port;
+
+    // Infer neihbor server nodes
+    std::vector<int> possibleServerPeerPorts;
+    for (int i : possibleServerPeerPorts){
+        if (i != this->port)
+            possibleServerPeerPorts.push_back(i);
+    } 
+    this->possibleServerPeerPorts = possibleServerPeerPorts;
+
     this->notification_id_counter = 0;
     mutex_session = PTHREAD_MUTEX_INITIALIZER;
     follow_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -282,6 +292,36 @@ void Server::print_followers()
 }
 
 
+ void Server::connectToGroupMembers(ServerSocket serverSocket){
+
+    struct sockaddr_in serv_addr;
+    struct hostent *server;
+	server = gethostbyname(SERVER_ADDR);
+    serv_addr.sin_family = AF_INET;
+    serv_addr.sin_addr = *((struct in_addr *)server->h_addr);
+	bzero(&(serv_addr.sin_zero), 8);
+    
+
+    for(int i : this->possibleServerPeerPorts){
+        serv_addr.sin_port = htons(i);
+        this->connectToMember(serv_addr);
+    }
+ }
+
+
+ bool Server::connectToMember(sockaddr_in serv_addr){
+
+     Socket *serverServerSocket = new Socket();
+
+     if (connect(serverServerSocket->getSocketfd(),(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0)
+        return false;
+
+    // else 
+    // create threads to communicate
+    return true;
+ }
+
+
 
 ServerSocket::ServerSocket() : Socket(){
     
@@ -311,6 +351,9 @@ void ServerSocket::connectNewClient(pthread_t *threadID, Server* server){
     newClientSocket = new Socket(*newsockfd);
 
     std::cout << "New connection estabilished on socket: " << *newsockfd << "\n\n";
+
+    // IMPLEMENT HERE THE DISTINGUISHMENT BETWEEN CLIENT CONNECTING OR OTHER SERVER CONNECTING
+    // dont forget to update client first message, if necessary, to make this thing work
 
 
     // IMPLEMENT HERE THE PART WHERE SERVER INFORMS CLIENT WHO IS THE PRIMARY SERVER
@@ -374,14 +417,12 @@ void ServerSocket::bindAndListen(){
 	
     if (bindSucceeded) {
         listen(this->getSocketfd(), MAX_TCP_CONNECTIONS);
-        std::cout << "Listening on port " << this->serv_addr.sin_port << "...\n\n";
+        std::cout << "Listening on port " << ntohs(this->serv_addr.sin_port) << "...\n\n";
     } else {
         std::cout << "ERROR on biding!\n";
         exit(1);
     }	
 }
-
-
 
 
 void *Server::communicationHandler(void *handlerArgs){

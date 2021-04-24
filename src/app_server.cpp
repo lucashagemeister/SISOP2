@@ -1,7 +1,7 @@
 #include "../include/Server.hpp"
 
 ServerSocket serverSocket = ServerSocket();
-Server* server = new Server();
+Server* server = new Server(ntohs(serverSocket.serv_addr.sin_port));
 
 int main(){
 
