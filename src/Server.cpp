@@ -358,13 +358,27 @@ void ServerSocket::connectNewClient(pthread_t *threadID, Server* server){
 
 void ServerSocket::bindAndListen(){
     
-    if (bind(this->getSocketfd(), (struct sockaddr *) &this->serv_addr, sizeof(this->serv_addr)) < 0) {
-		cout << "ERROR on binding\n";
-        exit(1);
+    bool bindSucceeded = false;
+
+    for (int i : possiblePorts){
+        
+        this->serv_addr.sin_port = htons(i);
+
+        if (bind(this->getSocketfd(), (struct sockaddr *) &this->serv_addr, sizeof(this->serv_addr)) < 0) {
+            cout << "Port " << i << "  already taken\n";
+        } else {
+            bindSucceeded = true;
+            break;
+        }
     }
 	
-	listen(this->getSocketfd(), MAX_TCP_CONNECTIONS);
-	std::cout << "Listening..." << "\n\n";
+    if (bindSucceeded) {
+        listen(this->getSocketfd(), MAX_TCP_CONNECTIONS);
+        std::cout << "Listening on port " << this->serv_addr.sin_port << "...\n\n";
+    } else {
+        std::cout << "ERROR on biding!\n";
+        exit(1);
+    }	
 }
 
 

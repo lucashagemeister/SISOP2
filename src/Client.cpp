@@ -63,7 +63,6 @@ void Client::connectToPrimaryServer(bool reestablishingConnection){
     if(!reestablishingConnection)
         cout << "Trying to connect to server...\n\n";
     
-    vector<int> possiblePorts { PORT, PORT1, PORT2, PORT3 };
     int i = 0;
     while (!(this->socket.connectToServer(this->serverAddress.c_str(), possiblePorts[i])) && (i <= possiblePorts.size())){
 

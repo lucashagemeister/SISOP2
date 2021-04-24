@@ -58,3 +58,4 @@ enum{
 #define MAX_TCP_CONNECTIONS 256
 #endif
 
+std::vector<int> possiblePorts { PORT, PORT1, PORT2, PORT3 };
