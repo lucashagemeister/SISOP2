@@ -9,8 +9,9 @@ int main(){
 	int i = 0;
 
 	serverSocket.bindAndListen();
+
 	// try to connect to other servers and defines itself as backup or primary
-	// depending on if there's any server running (-> backup) or not (-> primary)
+	server->connectToGroupMembers(serverSocket);
 
 	while (1){
 		serverSocket.connectNewClient(&threadConnections[i], server);

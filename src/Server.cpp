@@ -302,24 +302,138 @@ void Server::print_followers()
 	bzero(&(serv_addr.sin_zero), 8);
     
 
+    bool atLeastOneConnection = false;
     for(int i : this->possibleServerPeerPorts){
         serv_addr.sin_port = htons(i);
-        this->connectToMember(serv_addr);
+        if (this->connectToMember(serv_addr))
+            atLeastOneConnection = true;
+    }
+
+    if (atLeastOneConnection)
+        this->backupMode = true;
+
+    else{
+        this->backupMode = false;
+        this->portPrimarySever = this->port;
     }
  }
 
 
  bool Server::connectToMember(sockaddr_in serv_addr){
 
-     Socket *serverServerSocket = new Socket();
+    Socket *serverServerSocket = new Socket();
+    pthread_t serverServerThread;
 
-     if (connect(serverServerSocket->getSocketfd(),(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0)
+    if (connect(serverServerSocket->getSocketfd(),(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0)
         return false;
 
+
     // else 
-    // create threads to communicate
+    cout << "Connected to sever running at port " << ntohs(serv_addr.sin_port) << "\n";
+    
+    group_communiction_handler_args *args = (group_communiction_handler_args *) calloc(1, sizeof(group_communiction_handler_args));
+    args->peerServerAddress = serv_addr;
+    args->connectedSocket = serverServerSocket;
+    args->server = this;
+
+    pthread_create(&serverServerThread, NULL, Server::groupCommunicationHandler, (void *)args);
     return true;
  }
+
+
+void *Server::groupCommunicationHandler(void *handlerArgs){
+
+    pthread_t readCommandsT;
+    pthread_t sendNotificationsT;
+
+    pthread_create(&readCommandsT, NULL, Server::groupReadMessagesHandler, handlerArgs);
+    pthread_create(&sendNotificationsT, NULL, Server::groupSendMessagesHandler, handlerArgs);
+
+    pthread_join(readCommandsT, NULL);
+    pthread_join(sendNotificationsT, NULL);
+
+    return NULL;
+}
+
+
+void *Server::groupReadMessagesHandler(void *handlerArgs){
+
+    // Unroll arguments
+    struct group_communiction_handler_args *args = (struct group_communiction_handler_args *)handlerArgs;
+    Server* server = args->server;
+    int peerPort = ntohs(args->peerServerAddress.sin_port);
+    Socket* connectedSocket = args->connectedSocket;
+
+
+    string primaryServerPort;
+    while(1){
+        Packet* receivedPacket = connectedSocket->readPacket();
+        if (receivedPacket == NULL){ 
+            // ##################################################################################
+            // CONNECTION CLOSED! IF IT WAS THE PRIMARY SERVER THA CLOSED, INITIALIZAES ELECTION
+            // ##################################################################################
+            return NULL;
+        }
+        cout << receivedPacket->getPayload() << "\n\n";
+
+        switch(receivedPacket->getType()){
+
+            case ASK_PRIMARY:
+                primaryServerPort = std::to_string(server->portPrimarySever);
+                connectedSocket->sendPacket(Packet(PRIMARY_SERVER_PORT, primaryServerPort.c_str()));
+                break;
+
+            // ########################################################################
+            // Implement behavior for different kind of server-server messages arriving
+            // ########################################################################
+
+            default:
+                break;
+        }
+    }    
+
+}
+
+void *Server::groupSendMessagesHandler(void *handlerArgs){
+
+    // Unroll arguments
+    struct group_communiction_handler_args *args = (struct group_communiction_handler_args *)handlerArgs;
+    Server* server = args->server;
+    int peerPort = ntohs(args->peerServerAddress.sin_port);
+    Socket* connectedSocket = args->connectedSocket;
+
+
+    if (server->backupMode){    // Asks peer who's the primary server
+        int primaryServerPort;
+
+        Packet askForPrimary = Packet(ASK_PRIMARY, "");
+        connectedSocket->sendPacket(askForPrimary);
+        
+        Packet* primaryServerAnswer;
+        primaryServerAnswer = connectedSocket->readPacket();
+
+        if (primaryServerAnswer->getType() == PRIMARY_SERVER_PORT)
+            server->portPrimarySever = atoi(primaryServerAnswer->getPayload());
+        else 
+            cout << "Peer server didn't answer adequately to primary server port request, ignoring...\n";
+    }
+
+    if (peerPort == server->portPrimarySever){
+        // ############################################
+        // Asks primary server for current server state
+        // ############################################
+    }
+
+
+    while(true){
+    // #################################################################
+    // Keeps reading some data structure waiting for messages to be sent
+    // probably things to update state
+    // #################################################################
+    }
+
+}
+
 
 
 

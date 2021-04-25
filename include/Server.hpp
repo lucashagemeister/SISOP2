@@ -45,7 +45,9 @@ public:
     Server(host_address addr);
     string ip; 
     int port;
-    std::vector<int> possibleServerPeerPorts; 
+    vector<int> possibleServerPeerPorts; 
+    int portPrimarySever;
+    bool backupMode; 
 
     bool try_to_start_session(string user, host_address address);
     void follow_user(string user, string user_to_follow);
@@ -57,6 +59,11 @@ public:
 
     void connectToGroupMembers(ServerSocket serverSocket);
     bool connectToMember(sockaddr_in serv_addr);
+
+    static void *groupCommunicationHandler(void *handlerArgs);
+    static void *groupReadMessagesHandler(void *handlerArgs);
+    static void *groupSendMessagesHandler(void *handlerArgs);
+
 
     static void *communicationHandler(void *handlerArgs);
     static void *readCommandsHandler(void *handlerArgs);
@@ -99,6 +106,12 @@ struct communiction_handler_args {
 	Socket* connectedSocket;
 	host_address client_address; 
 	string user;
+    Server* server;
+};
+
+struct group_communiction_handler_args {
+	sockaddr_in peerServerAddress; 
+    Socket* connectedSocket;
     Server* server;
 };
 
