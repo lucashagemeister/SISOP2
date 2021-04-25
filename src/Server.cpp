@@ -10,7 +10,7 @@ Server::Server(int port)
     this->gotAnsweredInElection = false;
 
     this->port = port;
-
+    
     // Infer neihbor server nodes
     std::vector<int> possibleServerPeerPorts;
     for (int i : possiblePorts){
@@ -23,10 +23,12 @@ Server::Server(int port)
     mutex_session = PTHREAD_MUTEX_INITIALIZER;
     follow_mutex = PTHREAD_MUTEX_INITIALIZER;
     follower_count_mutex = PTHREAD_MUTEX_INITIALIZER;
+    packetsToBeSentMutex = PTHREAD_MUTEX_INITIALIZER;
 
     pthread_cond_init(&cond_notification_empty, NULL);
     pthread_cond_init(&cond_notification_full, NULL);
     pthread_mutex_init(&mutex_notification_sender, NULL);
+    pthread_mutex_init(&packetsToBeSentMutex, NULL);
 }
 
 Server::Server(host_address address)
@@ -40,10 +42,13 @@ Server::Server(host_address address)
     mutex_session = PTHREAD_MUTEX_INITIALIZER;
     follow_mutex = PTHREAD_MUTEX_INITIALIZER;
     follower_count_mutex = PTHREAD_MUTEX_INITIALIZER;
+    packetsToBeSentMutex = PTHREAD_MUTEX_INITIALIZER;
 
     pthread_cond_init(&cond_notification_empty, NULL);
     pthread_cond_init(&cond_notification_full, NULL);
     pthread_mutex_init(&mutex_notification_sender, NULL);
+    pthread_mutex_init(&packetsToBeSentMutex, NULL);
+
 }
 
 
@@ -350,10 +355,12 @@ void *Server::electionTimeoutHandler(void *handlerArgs){
             cout << "yupi an election started! \n\n";
             sleep(2);
             if(!server->gotAnsweredInElection){
+                pthread_mutex_lock(&server->packetsToBeSentMutex);
                 server->packetsToBeSent.push_back(Packet(COORDINATOR, ""));
                 server->setAsPrimaryServer();
                 server->electionStarted = false;
                 server->gotAnsweredInElection = false;
+                pthread_mutex_unlock(&server->packetsToBeSentMutex);
             }
         }
     }
@@ -365,18 +372,19 @@ void *Server::groupReadMessagesHandler(void *handlerArgs){
     // Unroll arguments
     struct group_communiction_handler_args *args = (struct group_communiction_handler_args *)handlerArgs;
     Server* server = args->server;
-    int peerPort = ntohs(args->peerServerAddress.sin_port);
+    int peerPort = args->peerPort;
     Socket* connectedSocket = args->connectedSocket;
-    bool isAcceptingConnection = args->isAcceptingConnection;   // i think this will not be used here 
-
 
     string primaryServerPort;
     while(1){
         Packet* receivedPacket = connectedSocket->readPacket();
+        
         if (receivedPacket == NULL){ 
             if (peerPort == server->portPrimarySever){
+                pthread_mutex_lock(&server->packetsToBeSentMutex);
                 cout << "Lost connection with primary server, initializing election... \n";
                 server->packetsToBeSent.push_back(Packet(ELECTION, ""));
+                pthread_mutex_unlock(&server->packetsToBeSentMutex);
             }
             return NULL;
         }
@@ -384,15 +392,12 @@ void *Server::groupReadMessagesHandler(void *handlerArgs){
         switch(receivedPacket->getType()){
 
             case ASK_PRIMARY:
-                cout << "recebi um pedido de primary..\n";
                 primaryServerPort = std::to_string(server->portPrimarySever);
-                cout << "enviando resposta: " << primaryServerPort << "\n";
                 connectedSocket->sendPacket(Packet(PRIMARY_SERVER_PORT, primaryServerPort.c_str()));
-                cout << "foi.\n";
                 break;
             
             case PRIMARY_SERVER_PORT:
-                cout << "li primary server!! " << atoi(receivedPacket->getPayload()) << "\n";
+                cout << "li primary server: " << atoi(receivedPacket->getPayload()) << "\n";
                 if (receivedPacket->getType() == PRIMARY_SERVER_PORT)
                     server->portPrimarySever = atoi(receivedPacket->getPayload());
                 break;
@@ -428,18 +433,22 @@ void *Server::groupSendMessagesHandler(void *handlerArgs){
     // Unroll arguments
     struct group_communiction_handler_args *args = (struct group_communiction_handler_args *)handlerArgs;
     Server* server = args->server;
-    int peerPort = ntohs(args->peerServerAddress.sin_port);
+    int peerPort = args->peerPort;
     Socket* connectedSocket = args->connectedSocket;
     bool isAcceptingConnection = args->isAcceptingConnection;
     int connectionStatus;
+
 
     if (!isAcceptingConnection){    // If the handler is being initialized by a server instance that have just started to execute
 
         connectionStatus = connectedSocket->sendPacket(Packet(SERVER_PEER_CONNECTING, ""));
         if (connectionStatus < 0)
             return NULL;
-
-        cout << "enviando SERVER_PEER_CONNECTING..\n";
+        
+        connectionStatus = connectedSocket->sendPacket(Packet(SERVER_PEER_CONNECTING, std::to_string(server->port).c_str()));
+        if (connectionStatus < 0)
+            return NULL;
+            
         if (server->backupMode){    // Asks peer who's the primary server
             int primaryServerPort;
 
@@ -447,7 +456,6 @@ void *Server::groupSendMessagesHandler(void *handlerArgs){
             connectionStatus = connectedSocket->sendPacket(askForPrimary);
             if (connectionStatus < 0)
                 return NULL;
-            cout << "enviando ASK_PRIMARY..\n";
         }
 
         if (peerPort == server->portPrimarySever){
@@ -455,18 +463,23 @@ void *Server::groupSendMessagesHandler(void *handlerArgs){
             // Asks primary server for current server state
             // ############################################
         }
+    } else {
+        
     }
 
 
     vector<Packet>::iterator it;
+    int i = 0;
     // Keeps consuming packetsToBeSent elements until connection closes
     while(true){
-        it = server->packetsToBeSent.begin();
+        pthread_mutex_lock(&server->packetsToBeSentMutex);
 
+        it = server->packetsToBeSent.begin();
         while(it != server->packetsToBeSent.end()) {
-            
+            cout << "iterating through server packets to be sent \n";
             if (it->getType() == ELECTION){
-                
+                cout << "tem um packet election na lista!!\n";
+                cout << "this port: " << server->port << " | peer port: " << peerPort << " \n";
                 server->electionStarted = true;
                 if (server->port < peerPort)
                     connectionStatus = connectedSocket->sendPacket(*it);
@@ -476,11 +489,12 @@ void *Server::groupSendMessagesHandler(void *handlerArgs){
             }
 
             it = server->packetsToBeSent.erase(it);
-            it++;
         }
+        pthread_mutex_unlock(&server->packetsToBeSentMutex);
 
         if (connectionStatus < 0)
             return NULL;
+        
     }
 }
 
@@ -522,8 +536,11 @@ void ServerSocket::connectNewClientOrServer(pthread_t *threadID, Server* server)
     Packet* connectionType = newConnectionSocket->readPacket();
     
     if (connectionType->getType() == SERVER_PEER_CONNECTING){
+
+        Packet* listenPortInfo = newConnectionSocket->readPacket();
+
         group_communiction_handler_args *args = (group_communiction_handler_args *) calloc(1, sizeof(group_communiction_handler_args));
-        args->peerServerAddress = cli_addr;
+        args->peerPort = atoi(listenPortInfo->getPayload());
         args->connectedSocket = newConnectionSocket;
         args->server = server;
         args->isAcceptingConnection = true;
@@ -617,10 +634,10 @@ bool ServerSocket::connectToMember(sockaddr_in serv_addr, Server* server){
     }
 
     // else 
-    cout << "Connected to sever running at port " << ntohs(serv_addr.sin_port) << "\n";
+    cout << "Connected!" << "\n";
     
     group_communiction_handler_args *args = (group_communiction_handler_args *) calloc(1, sizeof(group_communiction_handler_args));
-    args->peerServerAddress = serv_addr;
+    args->peerPort = ntohs(serv_addr.sin_port);
     args->connectedSocket = serverServerSocket;
     args->server = server;
     args->isAcceptingConnection = false;

@@ -85,6 +85,7 @@ private:
     pthread_mutex_t mutex_session;
     pthread_mutex_t follow_mutex;
     pthread_mutex_t follower_count_mutex;
+    pthread_mutex_t packetsToBeSentMutex;
 
     pthread_cond_t 	cond_notification_empty, cond_notification_full;
     pthread_mutex_t mutex_notification_sender;
@@ -114,7 +115,7 @@ struct communiction_handler_args {
 };
 
 struct group_communiction_handler_args {
-	sockaddr_in peerServerAddress; 
+    int peerPort;
     Socket* connectedSocket;
     Server* server;
     bool isAcceptingConnection;  // Wether the connection started by this server instance was by accepting (true),
