@@ -12,18 +12,9 @@ enum{
     CURRENT_PRIMARY,            // Message containing who's the current primary server
     USER_INFO_RECONNECT,        // Client message to inform the user it has a session opened before primary went down
     ASK_PRIMARY,                // Backup server sends message asking who's the primary server (what's its port)
-    PRIMARY_SERVER_PORT        // Answer of what's the port for the primary server
-};
-#endif
-
-
-#ifndef PORT_BAND
-#define PORT_BAND
-enum{
-    PORT = 4000,    // Primary server in normal situations
-    PORT1,          // Backup 1
-    PORT2,          // Backup 2
-    PORT3           // Backup 3
+    PRIMARY_SERVER_PORT,        // Answer of what's the port for the primary server
+    SERVER_PEER_CONNECTING,     // Used to inform that the established connection is server-server
+    CLIENT_CONNECTING          //  Used to inform that the established connection is client-server
 };
 #endif
 
@@ -60,4 +51,16 @@ enum{
 #define MAX_TCP_CONNECTIONS 256
 #endif
 
-std::vector<int> possiblePorts { PORT, PORT1, PORT2, PORT3 };
+
+#ifndef PORT_BAND
+#define PORT_BAND
+enum{
+    PORT = 4000,    // Primary server in normal situations
+    PORT1,          // Backup 1
+    PORT2,          // Backup 2
+    PORT3           // Backup 3
+};
+#endif
+
+
+extern std::vector<int> possiblePorts;

@@ -8,13 +8,13 @@ int main(){
     pthread_t threadConnections[MAX_TCP_CONNECTIONS];
 	int i = 0;
 
-	serverSocket.bindAndListen();
+	serverSocket.bindAndListen(server);
 
-	// try to connect to other servers and defines itself as backup or primary
-	server->connectToGroupMembers(serverSocket);
-
+	// Try to connect to other servers and defines itself as backup or primary
+	serverSocket.connectToGroupMembers(server);
+	
 	while (1){
-		serverSocket.connectNewClient(&threadConnections[i], server);
+		serverSocket.connectNewClientOrServer(&threadConnections[i], server);
 		i++;
 	}
 	return 0; 

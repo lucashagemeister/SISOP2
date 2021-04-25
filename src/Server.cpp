@@ -1,6 +1,8 @@
 #include "../include/Server.hpp"
 
 using namespace std;
+vector<int> possiblePorts { PORT, PORT1, PORT2, PORT3 };
+
 
 Server::Server(int port)
 {
@@ -8,7 +10,7 @@ Server::Server(int port)
 
     // Infer neihbor server nodes
     std::vector<int> possibleServerPeerPorts;
-    for (int i : possibleServerPeerPorts){
+    for (int i : possiblePorts){
         if (i != this->port)
             possibleServerPeerPorts.push_back(i);
     } 
@@ -37,6 +39,16 @@ Server::Server(host_address address)
     pthread_cond_init(&cond_notification_empty, NULL);
     pthread_cond_init(&cond_notification_full, NULL);
     pthread_mutex_init(&mutex_notification_sender, NULL);
+}
+
+
+void Server::updatePossibleServerPeerPorts(){
+    std::vector<int> possibleServerPeerPorts;
+    for (int i : possiblePorts){
+        if (i != this->port)
+            possibleServerPeerPorts.push_back(i);
+    } 
+    this->possibleServerPeerPorts = possibleServerPeerPorts;
 }
 
 
@@ -292,55 +304,6 @@ void Server::print_followers()
 }
 
 
- void Server::connectToGroupMembers(ServerSocket serverSocket){
-
-    struct sockaddr_in serv_addr;
-    struct hostent *server;
-	server = gethostbyname(SERVER_ADDR);
-    serv_addr.sin_family = AF_INET;
-    serv_addr.sin_addr = *((struct in_addr *)server->h_addr);
-	bzero(&(serv_addr.sin_zero), 8);
-    
-
-    bool atLeastOneConnection = false;
-    for(int i : this->possibleServerPeerPorts){
-        serv_addr.sin_port = htons(i);
-        if (this->connectToMember(serv_addr))
-            atLeastOneConnection = true;
-    }
-
-    if (atLeastOneConnection)
-        this->backupMode = true;
-
-    else{
-        this->backupMode = false;
-        this->portPrimarySever = this->port;
-    }
- }
-
-
- bool Server::connectToMember(sockaddr_in serv_addr){
-
-    Socket *serverServerSocket = new Socket();
-    pthread_t serverServerThread;
-
-    if (connect(serverServerSocket->getSocketfd(),(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0)
-        return false;
-
-
-    // else 
-    cout << "Connected to sever running at port " << ntohs(serv_addr.sin_port) << "\n";
-    
-    group_communiction_handler_args *args = (group_communiction_handler_args *) calloc(1, sizeof(group_communiction_handler_args));
-    args->peerServerAddress = serv_addr;
-    args->connectedSocket = serverServerSocket;
-    args->server = this;
-
-    pthread_create(&serverServerThread, NULL, Server::groupCommunicationHandler, (void *)args);
-    return true;
- }
-
-
 void *Server::groupCommunicationHandler(void *handlerArgs){
 
     pthread_t readCommandsT;
@@ -363,6 +326,7 @@ void *Server::groupReadMessagesHandler(void *handlerArgs){
     Server* server = args->server;
     int peerPort = ntohs(args->peerServerAddress.sin_port);
     Socket* connectedSocket = args->connectedSocket;
+    bool isAcceptingConnection = args->isAcceptingConnection;   // i think this will not be used here 
 
 
     string primaryServerPort;
@@ -374,13 +338,22 @@ void *Server::groupReadMessagesHandler(void *handlerArgs){
             // ##################################################################################
             return NULL;
         }
-        cout << receivedPacket->getPayload() << "\n\n";
+        //cout << receivedPacket->getPayload() << "\n\n";
 
         switch(receivedPacket->getType()){
 
             case ASK_PRIMARY:
+                cout << "recebi um pedido de primary..\n";
                 primaryServerPort = std::to_string(server->portPrimarySever);
+                cout << "enviando resposta: " << primaryServerPort << "\n";
                 connectedSocket->sendPacket(Packet(PRIMARY_SERVER_PORT, primaryServerPort.c_str()));
+                cout << "foi.\n";
+                break;
+            
+            case PRIMARY_SERVER_PORT:
+                cout << "li primary server!! " << atoi(receivedPacket->getPayload()) << "\n";
+                if (receivedPacket->getType() == PRIMARY_SERVER_PORT)
+                    server->portPrimarySever = atoi(receivedPacket->getPayload());
                 break;
 
             // ########################################################################
@@ -401,27 +374,26 @@ void *Server::groupSendMessagesHandler(void *handlerArgs){
     Server* server = args->server;
     int peerPort = ntohs(args->peerServerAddress.sin_port);
     Socket* connectedSocket = args->connectedSocket;
+    bool isAcceptingConnection = args->isAcceptingConnection;
 
 
-    if (server->backupMode){    // Asks peer who's the primary server
-        int primaryServerPort;
+    if (!isAcceptingConnection){    // If the handler is being initialized by a server instance that have just started to execute
 
-        Packet askForPrimary = Packet(ASK_PRIMARY, "");
-        connectedSocket->sendPacket(askForPrimary);
-        
-        Packet* primaryServerAnswer;
-        primaryServerAnswer = connectedSocket->readPacket();
+        connectedSocket->sendPacket(Packet(SERVER_PEER_CONNECTING, ""));
+        cout << "enviando SERVER_PEER_CONNECTING..\n";
+        if (server->backupMode){    // Asks peer who's the primary server
+            int primaryServerPort;
 
-        if (primaryServerAnswer->getType() == PRIMARY_SERVER_PORT)
-            server->portPrimarySever = atoi(primaryServerAnswer->getPayload());
-        else 
-            cout << "Peer server didn't answer adequately to primary server port request, ignoring...\n";
-    }
+            Packet askForPrimary = Packet(ASK_PRIMARY, "");
+            connectedSocket->sendPacket(askForPrimary);
+            cout << "enviando ASK_PRIMARY..\n";
+        }
 
-    if (peerPort == server->portPrimarySever){
-        // ############################################
-        // Asks primary server for current server state
-        // ############################################
+        if (peerPort == server->portPrimarySever){
+            // ############################################
+            // Asks primary server for current server state
+            // ############################################
+        }
     }
 
 
@@ -446,10 +418,10 @@ ServerSocket::ServerSocket() : Socket(){
 
 }
 
-void ServerSocket::connectNewClient(pthread_t *threadID, Server* server){
+void ServerSocket::connectNewClientOrServer(pthread_t *threadID, Server* server){
 
     int *newsockfd = (int *) calloc(1, sizeof(int));
-    Socket *newClientSocket = (Socket *) calloc(1, sizeof(Socket));
+    Socket *newConnectionSocket = (Socket *) calloc(1, sizeof(Socket));
 	socklen_t clilen;
 	struct sockaddr_in cli_addr;
     host_address client_address;
@@ -459,15 +431,31 @@ void ServerSocket::connectNewClient(pthread_t *threadID, Server* server){
     // Accepting connection to start communicating
     clilen = sizeof(struct sockaddr_in);
     if ((*newsockfd = accept(this->getSocketfd(), (struct sockaddr *) &cli_addr, &clilen)) == -1) {
-        std::cout << "ERROR on accepting client connection" << std::endl;
+        std::cout << "ERROR on accepting client or server connection" << std::endl;
         return;
     }
-    newClientSocket = new Socket(*newsockfd);
+    newConnectionSocket = new Socket(*newsockfd);
 
     std::cout << "New connection estabilished on socket: " << *newsockfd << "\n\n";
 
+
     // IMPLEMENT HERE THE DISTINGUISHMENT BETWEEN CLIENT CONNECTING OR OTHER SERVER CONNECTING
     // dont forget to update client first message, if necessary, to make this thing work
+    Packet* connectionType = newConnectionSocket->readPacket();
+    
+    if (connectionType->getType() == SERVER_PEER_CONNECTING){
+        group_communiction_handler_args *args = (group_communiction_handler_args *) calloc(1, sizeof(group_communiction_handler_args));
+        args->peerServerAddress = serv_addr;
+        args->connectedSocket = newConnectionSocket;
+        args->server = server;
+        args->isAcceptingConnection = true;
+
+        pthread_create(threadID, NULL, Server::groupCommunicationHandler, (void *)args);
+        return;
+    }
+
+
+    // ELSE (a client is connecting):
 
 
     // IMPLEMENT HERE THE PART WHERE SERVER INFORMS CLIENT WHO IS THE PRIMARY SERVER
@@ -477,7 +465,7 @@ void ServerSocket::connectNewClient(pthread_t *threadID, Server* server){
     
     // Verify if there are free sessions available
     // read client username from socket in 'user' var
-    Packet *userPacket = newClientSocket->readPacket();
+    Packet *userPacket = newConnectionSocket->readPacket();
 
     if (userPacket == NULL){
         std::cout << "Unable to read user information. Closing connection." << std::endl;
@@ -494,18 +482,18 @@ void ServerSocket::connectNewClient(pthread_t *threadID, Server* server){
         Packet sessionResultPkt;
         if (!sessionAvailable){
             sessionResultPkt = Packet(SESSION_OPEN_FAILED, "Unable to connect to server: no sessions available.");
-            newClientSocket->sendPacket(sessionResultPkt);
+            newConnectionSocket->sendPacket(sessionResultPkt);
             return; // destructor automatically closes the socket
         } else{
             sessionResultPkt = Packet(SESSION_OPEN_SUCCEDED, "Connection succeded! Session established.");
-            newClientSocket->sendPacket(sessionResultPkt);
+            newConnectionSocket->sendPacket(sessionResultPkt);
         }
     }
     
     // Build args
     communiction_handler_args *args = (communiction_handler_args *) calloc(1, sizeof(communiction_handler_args));
     args->client_address = client_address;
-    args->connectedSocket = newClientSocket;
+    args->connectedSocket = newConnectionSocket;
     args->user = user;
     args->server = server;
 
@@ -513,7 +501,58 @@ void ServerSocket::connectNewClient(pthread_t *threadID, Server* server){
 }
 
 
-void ServerSocket::bindAndListen(){
+void ServerSocket::connectToGroupMembers(Server* server){
+    struct sockaddr_in serv_addr;
+    struct hostent *serverHost = gethostbyname(SERVER_ADDR);
+    serv_addr.sin_family = AF_INET;
+    serv_addr.sin_addr = *((struct in_addr *)serverHost->h_addr);
+	bzero(&(serv_addr.sin_zero), 8);
+    
+
+    bool atLeastOneConnection = false;
+    for(int i : server->possibleServerPeerPorts){
+        serv_addr.sin_port = htons(i);
+        if (this->connectToMember(serv_addr, server))
+            atLeastOneConnection = true;
+    }
+
+    if (atLeastOneConnection)
+        server->backupMode = true;
+
+    else{
+        server->backupMode = false;
+        server->portPrimarySever = server->port;
+    }
+ }
+
+
+bool ServerSocket::connectToMember(sockaddr_in serv_addr, Server* server){
+
+    Socket *serverServerSocket = new Socket();
+    pthread_t serverServerThread;
+
+    cout << "Trying to connect to peer server in port " << ntohs(serv_addr.sin_port) << "... ";
+
+    if (connect(serverServerSocket->getSocketfd(),(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0){
+        cout << "Failed, no server instance running here.\n";
+        return false;
+    }
+
+    // else 
+    cout << "Connected to sever running at port " << ntohs(serv_addr.sin_port) << "\n";
+    
+    group_communiction_handler_args *args = (group_communiction_handler_args *) calloc(1, sizeof(group_communiction_handler_args));
+    args->peerServerAddress = serv_addr;
+    args->connectedSocket = serverServerSocket;
+    args->server = server;
+    args->isAcceptingConnection = false;
+
+    pthread_create(&serverServerThread, NULL, Server::groupCommunicationHandler, (void *)args);
+    return true;
+}
+
+
+void ServerSocket::bindAndListen(Server* server){
     
     bool bindSucceeded = false;
 
@@ -524,6 +563,8 @@ void ServerSocket::bindAndListen(){
         if (bind(this->getSocketfd(), (struct sockaddr *) &this->serv_addr, sizeof(this->serv_addr)) < 0) {
             cout << "Port " << i << "  already taken\n";
         } else {
+            server->port = i;
+            server->updatePossibleServerPeerPorts();
             bindSucceeded = true;
             break;
         }

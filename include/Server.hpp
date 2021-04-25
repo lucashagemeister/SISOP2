@@ -56,9 +56,7 @@ public:
     void retrieve_notifications_from_offline_period(string user, host_address addr);
     void read_notifications(host_address addr, vector<notification>* notifications);
 
-
-    void connectToGroupMembers(ServerSocket serverSocket);
-    bool connectToMember(sockaddr_in serv_addr);
+    void updatePossibleServerPeerPorts();
 
     static void *groupCommunicationHandler(void *handlerArgs);
     static void *groupReadMessagesHandler(void *handlerArgs);
@@ -113,6 +111,8 @@ struct group_communiction_handler_args {
 	sockaddr_in peerServerAddress; 
     Socket* connectedSocket;
     Server* server;
+    bool isAcceptingConnection;  // Wether the connection started by this server instance was by accepting (true),
+                                 // where the opposite would be it trying to connect to other instance (false)
 };
 
 class ServerSocket : public Socket {
@@ -120,8 +120,10 @@ class ServerSocket : public Socket {
 	public:
 		struct sockaddr_in serv_addr;
 
-		void bindAndListen();
-		void connectNewClient(pthread_t *threadID, Server *server);
+		void bindAndListen(Server* server);
+		void connectNewClientOrServer(pthread_t *threadID, Server *server);
+        void connectToGroupMembers(Server* server);
+        bool connectToMember(sockaddr_in serv_addr, Server* server);
 
 		ServerSocket();
 };
