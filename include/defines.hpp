@@ -1,3 +1,5 @@
+#include <vector>
+
 #ifndef PACKET_TYPES
 #define PACKET_TYPES
 enum{
@@ -67,6 +69,5 @@ enum{
     PORT3           // Backup 3
 };
 #endif
-
 
 extern std::vector<int> possiblePorts;

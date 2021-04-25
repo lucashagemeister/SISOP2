@@ -75,7 +75,8 @@ void Client::connectToPrimaryServer(bool reestablishingConnection){
         }
         i++;
     }
-    
+    this->socket.sendPacket(Packet(CLIENT_CONNECTING, ""));
+
     // Wait for server message telling who's the primary server
     Packet *primaryServerIpAddress;
     primaryServerIpAddress = this->socket.readPacket();
@@ -83,6 +84,7 @@ void Client::connectToPrimaryServer(bool reestablishingConnection){
     if (primaryServerIpAddress->getType() == ALREADY_PRIMARY)
         return;
     
+
     //else
     this->serverAddress = primaryServerIpAddress->getPayload();
 

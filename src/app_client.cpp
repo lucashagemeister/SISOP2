@@ -1,6 +1,7 @@
 #include "../include/Client.hpp"
 
 int main(int argc, char **argv) {
+
   Client *client = (Client *) calloc(1, sizeof(Client));
   pthread_t threadSender;
   pthread_t threadReceiver;
@@ -17,7 +18,6 @@ int main(int argc, char **argv) {
   int serverPort = atoi(argv[3]);
 
   client = new Client(user, serverPort, serverAddress);
-
 
   pthread_create(&threadControl, NULL, Client::controlThread, (void *)client);
   pthread_create(&threadReceiver, NULL, Client::do_threadReceiver, (void *)client);

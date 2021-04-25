@@ -531,10 +531,9 @@ void ServerSocket::connectNewClientOrServer(pthread_t *threadID, Server* server)
     std::cout << "New connection estabilished on socket: " << *newsockfd << "\n\n";
 
 
-    // IMPLEMENT HERE THE DISTINGUISHMENT BETWEEN CLIENT CONNECTING OR OTHER SERVER CONNECTING
-    // dont forget to update client first message, if necessary, to make this thing work
+
     Packet* connectionType = newConnectionSocket->readPacket();
-    
+        
     if (connectionType->getType() == SERVER_PEER_CONNECTING){
 
         Packet* listenPortInfo = newConnectionSocket->readPacket();
@@ -551,12 +550,13 @@ void ServerSocket::connectNewClientOrServer(pthread_t *threadID, Server* server)
 
 
     // ELSE (a client is connecting):
+    if (!server->backupMode)
+        newConnectionSocket->sendPacket(Packet(ALREADY_PRIMARY, ""));
+    else {
+        newConnectionSocket->sendPacket(Packet(MESSAGE_PKT, SERVER_ADDR));
+        newConnectionSocket->sendPacket(Packet(MESSAGE_PKT, std::to_string(server->portPrimarySever).c_str()));
+    }
 
-
-    // IMPLEMENT HERE THE PART WHERE SERVER INFORMS CLIENT WHO IS THE PRIMARY SERVER
-    // if me send packet "ALREADY_PRIMARY"
-    // if not me send packet MESSAGE "127.0.0.1"
-    //  send another packet <PORT OF PRIMARY>
     
     // Verify if there are free sessions available
     // read client username from socket in 'user' var
