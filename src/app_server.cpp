@@ -12,7 +12,7 @@ int main(){
 
 	// Try to connect to other servers and defines itself as backup or primary
 	serverSocket.connectToGroupMembers(server);
-	
+
 	while (1){
 		serverSocket.connectNewClientOrServer(&threadConnections[i], server);
 		i++;

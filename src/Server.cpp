@@ -6,6 +6,9 @@ vector<int> possiblePorts { PORT, PORT1, PORT2, PORT3 };
 
 Server::Server(int port)
 {
+    this->electionStarted = false;
+    this->gotAnsweredInElection = false;
+
     this->port = port;
 
     // Infer neihbor server nodes
@@ -28,6 +31,8 @@ Server::Server(int port)
 
 Server::Server(host_address address)
 {
+    this->electionStarted - false;
+    this->gotAnsweredInElection = false;
     this->notification_id_counter = 0;
 	this->ip = address.ipv4;
 	this->port = address.port;
@@ -49,6 +54,16 @@ void Server::updatePossibleServerPeerPorts(){
             possibleServerPeerPorts.push_back(i);
     } 
     this->possibleServerPeerPorts = possibleServerPeerPorts;
+}
+
+
+void Server::setAsPrimaryServer(){
+    this->backupMode = false;
+    this->portPrimarySever = this->port;
+
+    // ####################################################################################
+    // EFETUAR OUTROS "TRÂMITES" QUE PRECISAR PRA SETAR PASSAR ESSE SERVER COMO O PRIMÁRIO
+    // ####################################################################################
 }
 
 
@@ -308,14 +323,40 @@ void *Server::groupCommunicationHandler(void *handlerArgs){
 
     pthread_t readCommandsT;
     pthread_t sendNotificationsT;
+    pthread_t electionTimeoutT;
 
     pthread_create(&readCommandsT, NULL, Server::groupReadMessagesHandler, handlerArgs);
     pthread_create(&sendNotificationsT, NULL, Server::groupSendMessagesHandler, handlerArgs);
+    pthread_create(&electionTimeoutT, NULL, Server::electionTimeoutHandler, handlerArgs);
+
 
     pthread_join(readCommandsT, NULL);
     pthread_join(sendNotificationsT, NULL);
+    pthread_join(electionTimeoutT, NULL);
 
     return NULL;
+}
+
+
+void *Server::electionTimeoutHandler(void *handlerArgs){
+
+    // Unroll arguments
+    struct group_communiction_handler_args *args = (struct group_communiction_handler_args *)handlerArgs;
+    Server* server = args->server;
+    
+    while(true){
+
+        if(server->electionStarted){
+            cout << "yupi an election started! \n\n";
+            sleep(2);
+            if(!server->gotAnsweredInElection){
+                server->packetsToBeSent.push_back(Packet(COORDINATOR, ""));
+                server->setAsPrimaryServer();
+                server->electionStarted = false;
+                server->gotAnsweredInElection = false;
+            }
+        }
+    }
 }
 
 
@@ -333,12 +374,12 @@ void *Server::groupReadMessagesHandler(void *handlerArgs){
     while(1){
         Packet* receivedPacket = connectedSocket->readPacket();
         if (receivedPacket == NULL){ 
-            // ##################################################################################
-            // CONNECTION CLOSED! IF IT WAS THE PRIMARY SERVER THA CLOSED, INITIALIZAES ELECTION
-            // ##################################################################################
+            if (peerPort == server->portPrimarySever){
+                cout << "Lost connection with primary server, initializing election... \n";
+                server->packetsToBeSent.push_back(Packet(ELECTION, ""));
+            }
             return NULL;
         }
-        //cout << receivedPacket->getPayload() << "\n\n";
 
         switch(receivedPacket->getType()){
 
@@ -355,6 +396,21 @@ void *Server::groupReadMessagesHandler(void *handlerArgs){
                 if (receivedPacket->getType() == PRIMARY_SERVER_PORT)
                     server->portPrimarySever = atoi(receivedPacket->getPayload());
                 break;
+            
+            case ELECTION:
+                cout << "recebi coiso que alguem iniciou eleição..\n";
+                connectedSocket->sendPacket(Packet(ANSWER, ""));
+                break;
+
+            case ANSWER:
+                server->gotAnsweredInElection = true;
+                break;
+
+            case COORDINATOR:
+                cout << "esse carinha se elegeu: " << peerPort << "\n";
+                server->portPrimarySever = peerPort;
+
+
 
             // ########################################################################
             // Implement behavior for different kind of server-server messages arriving
@@ -375,17 +431,22 @@ void *Server::groupSendMessagesHandler(void *handlerArgs){
     int peerPort = ntohs(args->peerServerAddress.sin_port);
     Socket* connectedSocket = args->connectedSocket;
     bool isAcceptingConnection = args->isAcceptingConnection;
-
+    int connectionStatus;
 
     if (!isAcceptingConnection){    // If the handler is being initialized by a server instance that have just started to execute
 
-        connectedSocket->sendPacket(Packet(SERVER_PEER_CONNECTING, ""));
+        connectionStatus = connectedSocket->sendPacket(Packet(SERVER_PEER_CONNECTING, ""));
+        if (connectionStatus < 0)
+            return NULL;
+
         cout << "enviando SERVER_PEER_CONNECTING..\n";
         if (server->backupMode){    // Asks peer who's the primary server
             int primaryServerPort;
 
             Packet askForPrimary = Packet(ASK_PRIMARY, "");
-            connectedSocket->sendPacket(askForPrimary);
+            connectionStatus = connectedSocket->sendPacket(askForPrimary);
+            if (connectionStatus < 0)
+                return NULL;
             cout << "enviando ASK_PRIMARY..\n";
         }
 
@@ -397,13 +458,30 @@ void *Server::groupSendMessagesHandler(void *handlerArgs){
     }
 
 
+    vector<Packet>::iterator it;
+    // Keeps consuming packetsToBeSent elements until connection closes
     while(true){
-    // #################################################################
-    // Keeps reading some data structure waiting for messages to be sent
-    // probably things to update state
-    // #################################################################
-    }
+        it = server->packetsToBeSent.begin();
 
+        while(it != server->packetsToBeSent.end()) {
+            
+            if (it->getType() == ELECTION){
+                
+                server->electionStarted = true;
+                if (server->port < peerPort)
+                    connectionStatus = connectedSocket->sendPacket(*it);
+
+            } else {
+                connectionStatus = connectedSocket->sendPacket(*it);
+            }
+
+            it = server->packetsToBeSent.erase(it);
+            it++;
+        }
+
+        if (connectionStatus < 0)
+            return NULL;
+    }
 }
 
 
@@ -445,7 +523,7 @@ void ServerSocket::connectNewClientOrServer(pthread_t *threadID, Server* server)
     
     if (connectionType->getType() == SERVER_PEER_CONNECTING){
         group_communiction_handler_args *args = (group_communiction_handler_args *) calloc(1, sizeof(group_communiction_handler_args));
-        args->peerServerAddress = serv_addr;
+        args->peerServerAddress = cli_addr;
         args->connectedSocket = newConnectionSocket;
         args->server = server;
         args->isAcceptingConnection = true;

@@ -48,6 +48,10 @@ public:
     vector<int> possibleServerPeerPorts; 
     int portPrimarySever;
     bool backupMode; 
+    bool electionStarted;
+    bool gotAnsweredInElection;
+
+    vector<Packet> packetsToBeSent;
 
     bool try_to_start_session(string user, host_address address);
     void follow_user(string user, string user_to_follow);
@@ -57,10 +61,12 @@ public:
     void read_notifications(host_address addr, vector<notification>* notifications);
 
     void updatePossibleServerPeerPorts();
+    void setAsPrimaryServer();
 
     static void *groupCommunicationHandler(void *handlerArgs);
     static void *groupReadMessagesHandler(void *handlerArgs);
     static void *groupSendMessagesHandler(void *handlerArgs);
+    static void *electionTimeoutHandler(void *handlerArgs);
 
 
     static void *communicationHandler(void *handlerArgs);

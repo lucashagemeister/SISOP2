@@ -14,7 +14,13 @@ enum{
     ASK_PRIMARY,                // Backup server sends message asking who's the primary server (what's its port)
     PRIMARY_SERVER_PORT,        // Answer of what's the port for the primary server
     SERVER_PEER_CONNECTING,     // Used to inform that the established connection is server-server
-    CLIENT_CONNECTING          //  Used to inform that the established connection is client-server
+    CLIENT_CONNECTING,          //  Used to inform that the established connection is client-server
+    
+    // For the bully election algorithm
+    ELECTION,
+    ANSWER,
+    COORDINATOR,
+
 };
 #endif
 
