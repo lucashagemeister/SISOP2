@@ -571,7 +571,26 @@ void ServerSocket::connectNewClientOrServer(pthread_t *threadID, Server* server)
     if (userPacket->getType() == USER_INFO_PKT){
         client_address.ipv4 = inet_ntoa(cli_addr.sin_addr);
         client_address.port = ntohs(cli_addr.sin_port);
+        // mutex
+        // server->save_sessions_current_state();
         bool sessionAvailable = server->try_to_start_session(user, client_address);
+        /* 
+        error = false
+        if sessionAvailable: 
+            for backup in backups:
+                send session created
+                wait response 
+                if session started: 
+                    next
+                else:
+                    abort
+                    sessions state = previous state
+                    error = true
+                    for confirmed_backup in confirmed_backups:
+                        abort/uncommit changes
+                    break
+        }
+        mutex */
 
     
         Packet sessionResultPkt;
@@ -709,13 +728,16 @@ void *Server::readCommandsHandler(void *handlerArgs){
             case COMMAND_FOLLOW_PKT:
                 userToFollow = receivedPacket->getPayload();
                 response = "Followed "+userToFollow+"!";
-
+                // transaction
                 args->server->follow_user(args->user, userToFollow);
+                // transaction
                 args->connectedSocket->sendPacket(Packet(MESSAGE_PKT, response.c_str()));
                 break;
 
             case COMMAND_SEND_PKT:
+                // transaction
                 args->server->create_notification(args->user, receivedPacket->getPayload(), receivedPacket->getTimestamp());
+                // transaction
                 args->connectedSocket->sendPacket(Packet(MESSAGE_PKT, "Notification sent!"));
                 break;
 
@@ -732,7 +754,9 @@ void *Server::sendNotificationsHandler(void *handlerArgs)
     Packet notificationPacket;
     int n;
 
+    // transaction
     args->server->retrieve_notifications_from_offline_period(args->user, args->client_address);
+    // transaction
     while(1)
     {    
         vector<notification> notifications;
