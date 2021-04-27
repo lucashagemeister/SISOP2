@@ -29,6 +29,7 @@ Server::Server(int port)
     pthread_cond_init(&cond_notification_full, NULL);
     pthread_mutex_init(&mutex_notification_sender, NULL);
     pthread_mutex_init(&packetsToBeSentMutex, NULL);
+    pthread_mutex_init(&seqn_transaction_serializer, NULL);
 }
 
 Server::Server(host_address address)
@@ -48,6 +49,7 @@ Server::Server(host_address address)
     pthread_cond_init(&cond_notification_full, NULL);
     pthread_mutex_init(&mutex_notification_sender, NULL);
     pthread_mutex_init(&packetsToBeSentMutex, NULL);
+    pthread_mutex_init(&seqn_transaction_serializer, NULL);
 
 }
 
@@ -75,7 +77,20 @@ void Server::setAsPrimaryServer(){
 // se não tiver um host_address, eu posso fazer e devolver um session_id
 bool Server::try_to_start_session(string user, host_address address)
 {
-    pthread_mutex_lock(&mutex_session);
+    pthread_mutex_lock(&seqn_transaction_serializer);
+    uint16_t seqn = seqn_history.back() +1;
+
+    deepcopy_user_sessions_semaphore(user_sessions_semaphore, &COPY_user_sessions_semaphore);
+    deepcopy_sessions(sessions, &COPY_sessions);
+    deepcopy_users_unread_notifications(users_unread_notifications, &COPY_users_unread_notifications);
+    deepcopy_followers(followers, &COPY_followers);
+    deepcopy_active_notifications(COPY_active_notifications, &COPY_active_notifications);
+    deepcopy_active_users_pending_notifications(active_users_pending_notifications, &COPY_active_users_pending_notifications);
+
+    print_sessions();
+    print_COPY_sessions();
+    print_users_unread_notifications();
+    print_COPY_users_unread_notifications();
 
     if(!user_exists(user))
     {
@@ -93,13 +108,56 @@ bool Server::try_to_start_session(string user, host_address address)
         sessions[user].push_back(address);
         active_users_pending_notifications.insert({address, priority_queue<uint32_t, vector<uint32_t>, greater<uint32_t>>()});
     }
-    pthread_mutex_unlock(&mutex_session); // Fim SC
-    return session_started == 0; 
+
+    print_sessions();
+    print_COPY_sessions();
+    print_users_unread_notifications();
+    print_COPY_users_unread_notifications();
+
+    bool commited;
+    if(backupMode) {
+        commited = wait_primary_commit(seqn);
+    } else {
+        commited = send_backup_change(seqn);
+    }
+
+    if(!commited) 
+    {
+        deepcopy_user_sessions_semaphore(COPY_user_sessions_semaphore, &user_sessions_semaphore);
+        deepcopy_sessions(COPY_sessions, &sessions);
+        deepcopy_users_unread_notifications(COPY_users_unread_notifications, &users_unread_notifications);
+        deepcopy_followers(COPY_followers, &followers);
+        deepcopy_active_notifications(COPY_active_notifications, &COPY_active_notifications);
+        deepcopy_active_users_pending_notifications(COPY_active_users_pending_notifications, &active_users_pending_notifications);
+    }  
+
+
+    print_sessions();
+    print_COPY_sessions();
+    print_users_unread_notifications();
+    print_COPY_users_unread_notifications();
+
+    pthread_mutex_unlock(&seqn_transaction_serializer);
+    return commited && session_started == 0; 
 }
 
 bool Server::user_exists(string user)
 {
     return user_sessions_semaphore.find(user) != user_sessions_semaphore.end();
+}
+
+bool Server::wait_primary_commit(uint16_t seqn)
+{
+    // send ok
+    // wait primary response
+    return true;
+}
+
+bool Server::send_backup_change(uint16_t seqn)
+{
+    // send command to backup servers
+    // wait for all backup servers response
+    return true;
 }
 
 
@@ -251,6 +309,99 @@ void Server::follow_user(string user, string user_to_follow)
 }
 
 
+void Server::deepcopy_user_sessions_semaphore(map<string, sem_t> from, map<string, sem_t>* to)
+{
+    to->clear();
+
+    for(auto it = from.begin(); it != from.end(); it++)
+    {
+        sem_t num_sessions;
+        int value;
+        sem_getvalue(&(it->second), &value);
+        sem_init(&num_sessions, 0, value);
+
+        to->insert({it->first, num_sessions});
+    }
+}
+void Server::deepcopy_sessions(map< string, list<host_address> > from, map< string, list<host_address> >* to)
+{
+    to->clear();
+
+    for(auto it = from.begin(); it != from.end(); it++)
+    {
+        list<host_address> addresses;
+        for(auto itl = (it->second).begin(); itl != (it->second).end(); itl++)
+        {
+            host_address addr;
+            addr.ipv4 = itl->ipv4;
+            addr.port = itl->port;
+            addresses.push_back(addr);
+        }
+        to->insert({it->first, addresses});
+    }
+}
+void Server::deepcopy_users_unread_notifications(map< string, list< uint32_t>> from, map< string, list< uint32_t>>* to) 
+{
+    to->clear();
+
+    for(auto it = from.begin(); it != from.end(); it++)
+    {
+        list< uint32_t> notifications;
+        for(auto itl = (it->second).begin(); itl != (it->second).end(); itl++)
+        {
+            notifications.push_back(*itl);
+        }
+        to->insert({it->first, notifications});
+    }
+}
+void Server::deepcopy_followers(map<string, list<string>> from, map<string, list<string>>* to)
+{
+    to->clear();
+
+    for(auto it = from.begin(); it != from.end(); it++)
+    {
+        list< string> notifications;
+        for(auto itl = (it->second).begin(); itl != (it->second).end(); itl++)
+        {
+            notifications.push_back(*itl);
+        }
+        to->insert({it->first, notifications});
+    }
+}
+void Server::deepcopy_active_notifications(vector<notification> from, vector<notification>* to)
+{
+    to->clear();
+
+    for(auto it = from.begin(); it != from.end(); it++)
+    {
+        to->push_back(*it);
+    }
+}
+void Server::deepcopy_active_users_pending_notifications(map< host_address, priority_queue< uint32_t, vector<uint32_t>, greater<uint32_t>>> from, 
+                                                         map< host_address, priority_queue< uint32_t, vector<uint32_t>, greater<uint32_t>>>* to)
+{
+    to->clear();
+
+    for(auto it = from.begin(); it != from.end(); it++)
+    {
+        vector<uint32_t> notifications;
+        priority_queue< uint32_t, vector<uint32_t>, greater<uint32_t>> temp_queue;
+        while(!((it->second).empty()))
+        {
+            uint32_t notif = (it->second).top();
+            notifications.push_back(notif);
+            temp_queue.push(notif);
+
+            (it->second).pop();
+        }
+        for (auto itv = notifications.begin(); itv != notifications.end(); itv++)
+        {
+            (it->second).push(*itv);
+        }
+        
+        to->insert({it->first, temp_queue});
+    }
+}
 
 
 void Server::print_users_unread_notifications() 
@@ -267,8 +418,6 @@ void Server::print_users_unread_notifications()
         cout << "]\n";
     }
 }
-
-
 void Server::print_active_users_unread_notifications() 
 {
     cout << "Active users notifications to receive: \n";
@@ -279,7 +428,6 @@ void Server::print_active_users_unread_notifications()
         cout << it->second.size() << "]\n";
     }
 }
-
 void Server::print_sessions() 
 {
     cout << "\nSessions: " << sessions.size() << "\n";
@@ -294,7 +442,6 @@ void Server::print_sessions()
         cout << "]\n";
     }
 }
-
 void Server::print_active_notifications() 
 {
     cout << "\nNotifications: " << active_notifications.size() << "\n";
@@ -307,7 +454,6 @@ void Server::print_active_notifications()
         cout << "\n";
     }
 }
-
 void Server::print_followers() 
 {
     cout << "\nFollowers: " << followers.size() << "\n";
@@ -323,6 +469,70 @@ void Server::print_followers()
     }
 }
 
+void Server::print_COPY_users_unread_notifications() 
+{
+    cout << "\nCOPY_Users unread notifications: \n";
+
+    for(auto it = COPY_users_unread_notifications.begin(); it != COPY_users_unread_notifications.end(); it++)
+    {
+        cout << it->first << ": [";
+        for(auto itl = (it->second).begin(); itl != (it->second).end(); itl++)
+        {
+            cout << *itl << ", ";
+        }
+        cout << "]\n";
+    }
+}
+void Server::print_COPY_active_users_unread_notifications() 
+{
+    cout << "COPY_Active users notifications to receive: \n";
+
+    for(auto it = COPY_active_users_pending_notifications.begin(); it != COPY_active_users_pending_notifications.end(); it++)
+    {
+        cout << it->first.ipv4 << ":" << it->first.port << ": [";
+        cout << it->second.size() << "]\n";
+    }
+}
+void Server::print_COPY_sessions() 
+{
+    cout << "\nCOPY_Sessions: " << COPY_sessions.size() << "\n";
+
+    for(auto it = COPY_sessions.begin(); it != COPY_sessions.end(); it++)
+    {
+        cout << it->first << ": [";
+        for(auto itl = (it->second).begin(); itl != (it->second).end(); itl++)
+        {
+            cout << (*itl).ipv4 << ":" << (*itl).port << ", ";
+        }
+        cout << "]\n";
+    }
+}
+void Server::print_COPY_active_notifications() 
+{
+    cout << "\nCOPY_Notifications: " << COPY_active_notifications.size() << "\n";
+
+    for(auto it = COPY_active_notifications.begin(); it != COPY_active_notifications.end(); it++)
+    {
+        cout << it->id << "\n";
+        cout << it->author << "\n";
+        cout << it->body << "\n";
+        cout << "\n";
+    }
+}
+void Server::print_COPY_followers() 
+{
+    cout << "\nCOPY_Followers: " << COPY_followers.size() << "\n";
+
+    for(auto it = COPY_followers.begin(); it != COPY_followers.end(); it++)
+    {
+        cout << it->first << ": [";
+        for(auto itl = (it->second).begin(); itl != (it->second).end(); itl++)
+        {
+            cout << *itl << ", ";
+        }
+        cout << "]\n";
+    }
+}
 
 void *Server::groupCommunicationHandler(void *handlerArgs){
 

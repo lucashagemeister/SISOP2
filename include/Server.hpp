@@ -78,7 +78,13 @@ public:
     void print_sessions();
     void print_active_notifications();
     void print_active_users_unread_notifications();
-    void print_followers();
+    void print_followers();    
+    
+    void print_COPY_users_unread_notifications();
+    void print_COPY_sessions();
+    void print_COPY_active_notifications();
+    void print_COPY_active_users_unread_notifications();
+    void print_COPY_followers();
 
     
 private: 
@@ -89,6 +95,8 @@ private:
 
     pthread_cond_t 	cond_notification_empty, cond_notification_full;
     pthread_mutex_t mutex_notification_sender;
+
+    pthread_mutex_t seqn_transaction_serializer;
 
     uint32_t notification_id_counter;
 
@@ -102,8 +110,28 @@ private:
     bool user_exists(string user);
     bool user_is_active(string user);
     void assign_notification_to_active_sessions(uint32_t notification_id, list<string> followers);
+    bool wait_primary_commit(uint16_t seqn);
+    bool send_backup_change(uint16_t seqn);
 
+    // transaction management
+	vector<Socket*> replica_sockets;
+	vector<uint16_t> seqn_history;  
 
+    map<string, sem_t> COPY_user_sessions_semaphore;
+    map< string, list< host_address > > COPY_sessions;
+    map< string, list< uint32_t > > COPY_users_unread_notifications;
+    map< string, list<string> > COPY_followers;
+    vector<notification> COPY_active_notifications;
+    map< host_address, priority_queue< uint32_t, vector<uint32_t>, greater<uint32_t> > > COPY_active_users_pending_notifications;
+
+    void deepcopy_user_sessions_semaphore(map<string, sem_t> from, map<string, sem_t> *to);
+    void deepcopy_sessions(map< string, list<host_address> > from, map< string, list<host_address> > *to);
+    void deepcopy_users_unread_notifications(map< string, list<uint32_t> > from, map< string, list<uint32_t> > *to);
+    void deepcopy_followers(map< string, list<string> > from, map< string, list<string> > *to);
+    void deepcopy_active_notifications(vector<notification> from, vector<notification> *to);
+    void deepcopy_active_users_pending_notifications(map< host_address, priority_queue< uint32_t, vector<uint32_t>, greater<uint32_t>>> from, 
+                                                     map< host_address, priority_queue< uint32_t, vector<uint32_t>, greater<uint32_t>>> *to);
+  
 };
 
 
@@ -121,6 +149,7 @@ struct group_communiction_handler_args {
     bool isAcceptingConnection;  // Wether the connection started by this server instance was by accepting (true),
                                  // where the opposite would be it trying to connect to other instance (false)
 };
+
 
 class ServerSocket : public Socket {
 	
