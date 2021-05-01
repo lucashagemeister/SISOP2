@@ -78,7 +78,7 @@ void Server::setAsPrimaryServer(){
 bool Server::try_to_start_session(string user, host_address address)
 {
     pthread_mutex_lock(&seqn_transaction_serializer);
-    uint16_t seqn = seqn_history.back() +1;
+    uint16_t seqn = get_current_sequence();
 
     event session_event = event(seqn, "SESSION", user, address.ipv4, to_string(address.port), false); // int to string: stoi( str )
 
@@ -118,9 +118,9 @@ bool Server::try_to_start_session(string user, host_address address)
 
     bool commited;
     if(backupMode) {
-        commited = wait_primary_commit(seqn);
+        commited = wait_primary_commit(session_event);
     } else {
-        commited = send_backup_change(seqn);
+        commited = send_backup_change(session_event);
     }
 
     if(!commited) 
@@ -141,9 +141,20 @@ bool Server::try_to_start_session(string user, host_address address)
     print_COPY_sessions();
     print_users_unread_notifications();
     print_COPY_users_unread_notifications();
+    print_events();
 
     pthread_mutex_unlock(&seqn_transaction_serializer);
     return commited && session_started == 0; 
+}
+
+uint16_t Server::get_current_sequence()
+{
+    if(event_history.empty())
+    {
+        return 1;
+    } 
+
+    return event_history.back().seqn + 1;
 }
 
 bool Server::user_exists(string user)
@@ -151,14 +162,14 @@ bool Server::user_exists(string user)
     return user_sessions_semaphore.find(user) != user_sessions_semaphore.end();
 }
 
-bool Server::wait_primary_commit(uint16_t seqn)
+bool Server::wait_primary_commit(event e)
 {
     // send ok
     // wait primary response
     return true;
 }
 
-bool Server::send_backup_change(uint16_t seqn)
+bool Server::send_backup_change(event e)
 {
     // send command to backup servers
     // wait for all backup servers response
@@ -471,6 +482,20 @@ void Server::print_followers()
             cout << *itl << ", ";
         }
         cout << "]\n";
+    }
+}
+void Server::print_events() 
+{
+    cout << "\nEvents: " << event_history.size() << "\n";
+
+    for(auto it = event_history.begin(); it != event_history.end(); it++)
+    {
+        cout << it->seqn << ": ";
+        cout << it->command << "(";
+        cout << it->arg1 << ", ";
+        cout << it->arg2 << ", ";
+        cout << it->arg3 << "), [";
+        cout << it->commited << "]\n";
     }
 }
 

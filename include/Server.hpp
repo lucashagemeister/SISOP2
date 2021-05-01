@@ -98,6 +98,7 @@ public:
     void print_active_notifications();
     void print_active_users_unread_notifications();
     void print_followers();    
+    void print_events();    
     
     void print_COPY_users_unread_notifications();
     void print_COPY_sessions();
@@ -129,12 +130,13 @@ private:
     bool user_exists(string user);
     bool user_is_active(string user);
     void assign_notification_to_active_sessions(uint32_t notification_id, list<string> followers);
-    bool wait_primary_commit(uint16_t seqn);
-    bool send_backup_change(uint16_t seqn);
+    bool wait_primary_commit(event e);
+    bool send_backup_change(event e);
+
+    uint16_t get_current_sequence();
 
     // transaction management
 	vector<Socket*> replica_sockets;
-	vector<uint16_t> seqn_history;  
 
     map<string, sem_t> COPY_user_sessions_semaphore;
     map< string, list< host_address > > COPY_sessions;
