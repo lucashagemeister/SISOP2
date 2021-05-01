@@ -62,6 +62,7 @@ public:
     Server(host_address addr);
     string ip; 
     int port;
+    int id;
     vector<int> possibleServerPeerPorts; 
     int portPrimarySever;
     bool backupMode; 
@@ -70,7 +71,8 @@ public:
 
     vector<event> event_history; 
 
-    vector<Packet> packetsToBeSent;
+    //vector<Packet> packetsToBeSent;
+    map<int, Socket> connectedServers;
 
     bool try_to_start_session(string user, host_address address);
     void follow_user(string user, string user_to_follow);
@@ -81,6 +83,8 @@ public:
 
     void updatePossibleServerPeerPorts();
     void setAsPrimaryServer();
+    void sendPacketToAllServersInTheGroup(Packet p);
+    void sendElectionPacketForGreaterIds();
 
     static void *groupCommunicationHandler(void *handlerArgs);
     static void *groupReadMessagesHandler(void *handlerArgs);

@@ -583,6 +583,21 @@ void *Server::groupCommunicationHandler(void *handlerArgs){
 }
 
 
+void Server::sendPacketToAllServersInTheGroup(Packet p){
+    for (auto &peer : this->connectedServers){
+        peer.second.sendPacket(p);
+    }
+}
+
+
+void Server::sendElectionPacketForGreaterIds(){
+    for (auto &peer : this->connectedServers){
+        if (peer.first > this->id) 
+            peer.second.sendPacket(Packet(ELECTION, ""));
+    }
+}
+
+
 void *Server::electionTimeoutHandler(void *handlerArgs){
 
     // Unroll arguments
@@ -595,12 +610,12 @@ void *Server::electionTimeoutHandler(void *handlerArgs){
             cout << "yupi an election started! \n\n";
             sleep(2);
             if(!server->gotAnsweredInElection){
-                pthread_mutex_lock(&server->packetsToBeSentMutex);
-                server->packetsToBeSent.push_back(Packet(COORDINATOR, ""));
+                //pthread_mutex_lock(&server->packetsToBeSentMutex);
+                //server->packetsToBeSent.push_back(Packet(COORDINATOR, ""));
                 server->setAsPrimaryServer();
                 server->electionStarted = false;
                 server->gotAnsweredInElection = false;
-                pthread_mutex_unlock(&server->packetsToBeSentMutex);
+                //pthread_mutex_unlock(&server->packetsToBeSentMutex);
             }
         }
     }
@@ -621,10 +636,11 @@ void *Server::groupReadMessagesHandler(void *handlerArgs){
         
         if (receivedPacket == NULL){ 
             if (peerPort == server->portPrimarySever){
-                pthread_mutex_lock(&server->packetsToBeSentMutex);
+                //pthread_mutex_lock(&server->packetsToBeSentMutex);
                 cout << "Lost connection with primary server, initializing election... \n";
-                server->packetsToBeSent.push_back(Packet(ELECTION, ""));
-                pthread_mutex_unlock(&server->packetsToBeSentMutex);
+                //server->packetsToBeSent.push_back(Packet(ELECTION, ""));
+                //pthread_mutex_unlock(&server->packetsToBeSentMutex);
+
             }
             return NULL;
         }
@@ -707,7 +723,7 @@ void *Server::groupSendMessagesHandler(void *handlerArgs){
         
     }
 
-
+    /*
     vector<Packet>::iterator it;
     int i = 0;
     // Keeps consuming packetsToBeSent elements until connection closes
@@ -736,6 +752,7 @@ void *Server::groupSendMessagesHandler(void *handlerArgs){
             return NULL;
         
     }
+    */
 }
 
 
