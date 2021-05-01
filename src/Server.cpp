@@ -80,6 +80,8 @@ bool Server::try_to_start_session(string user, host_address address)
     pthread_mutex_lock(&seqn_transaction_serializer);
     uint16_t seqn = seqn_history.back() +1;
 
+    event session_event = event(seqn, "SESSION", user, address.ipv4, to_string(address.port), false); // int to string: stoi( str )
+
     deepcopy_user_sessions_semaphore(user_sessions_semaphore, &COPY_user_sessions_semaphore);
     deepcopy_sessions(sessions, &COPY_sessions);
     deepcopy_users_unread_notifications(users_unread_notifications, &COPY_users_unread_notifications);
@@ -129,7 +131,10 @@ bool Server::try_to_start_session(string user, host_address address)
         deepcopy_followers(COPY_followers, &followers);
         deepcopy_active_notifications(COPY_active_notifications, &COPY_active_notifications);
         deepcopy_active_users_pending_notifications(COPY_active_users_pending_notifications, &active_users_pending_notifications);
-    }  
+    }
+
+    session_event.commited = commited;
+    event_history.push_back(session_event);  
 
 
     print_sessions();

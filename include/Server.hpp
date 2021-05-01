@@ -35,7 +35,24 @@ typedef struct __notification {
 
 } notification;
 
+typedef struct _event {
 
+    _event();
+    _event(uint16_t new_seqn, string new_command, string arg_1, string arg_2, string arg_3, bool new_commited) 
+        : seqn(new_seqn), command(new_command), arg1(arg_1), arg2(arg_2), arg3(arg_3), commited(new_commited) {}
+
+    uint16_t seqn;
+    string command; // can use packet types
+    string arg1;
+    string arg2;
+    string arg3;
+    bool commited;
+
+    bool operator ==(_event other) const {
+		return seqn == other.seqn && commited == other.commited;
+	}
+
+} event;
 
 
 class Server
@@ -50,6 +67,8 @@ public:
     bool backupMode; 
     bool electionStarted;
     bool gotAnsweredInElection;
+
+    vector<event> event_history; 
 
     vector<Packet> packetsToBeSent;
 
