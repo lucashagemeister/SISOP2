@@ -98,17 +98,17 @@ bool Server::try_to_start_session(string user, host_address address)
     {
         sem_t num_sessions;
         sem_init(&num_sessions, 0, 2);
-        user_sessions_semaphore.insert({user, num_sessions}); // user is created with 2 sessions available
-        sessions.insert({user, list<host_address>()});
-        followers.insert(pair<string, list<string>>(user, list<string>()));
-        users_unread_notifications.insert({user, list<uint32_t>()});
+        COPY_user_sessions_semaphore.insert({user, num_sessions}); // user is created with 2 sessions available
+        COPY_sessions.insert({user, list<host_address>()});
+        COPY_followers.insert(pair<string, list<string>>(user, list<string>()));
+        COPY_users_unread_notifications.insert({user, list<uint32_t>()});
     } 
     
-    int session_started = sem_trywait(&(user_sessions_semaphore[user])); // try to consume a session resource
+    int session_started = sem_trywait(&(COPY_user_sessions_semaphore[user])); // try to consume a session resource
     if(session_started == 0) // 0 if session started, -1 if not
     { 
-        sessions[user].push_back(address);
-        active_users_pending_notifications.insert({address, priority_queue<uint32_t, vector<uint32_t>, greater<uint32_t>>()});
+        COPY_sessions[user].push_back(address);
+        COPY_active_users_pending_notifications.insert({address, priority_queue<uint32_t, vector<uint32_t>, greater<uint32_t>>()});
     }
 
     print_sessions();
@@ -123,7 +123,7 @@ bool Server::try_to_start_session(string user, host_address address)
         commited = send_backup_change(session_event);
     }
 
-    if(!commited) 
+    if(commited) 
     {
         deepcopy_user_sessions_semaphore(COPY_user_sessions_semaphore, &user_sessions_semaphore);
         deepcopy_sessions(COPY_sessions, &sessions);
