@@ -38,18 +38,18 @@ typedef struct __notification {
 typedef struct _event {
 
     _event();
-    _event(uint16_t new_seqn, string new_command, string arg_1, string arg_2, string arg_3, bool new_commited) 
-        : seqn(new_seqn), command(new_command), arg1(arg_1), arg2(arg_2), arg3(arg_3), commited(new_commited) {}
+    _event(uint16_t new_seqn, string new_command, string arg_1, string arg_2, string arg_3, bool new_committed) 
+        : seqn(new_seqn), command(new_command), arg1(arg_1), arg2(arg_2), arg3(arg_3), committed(new_committed) {}
 
     uint16_t seqn;
     string command; // can use packet types
     string arg1;
     string arg2;
     string arg3;
-    bool commited;
+    bool committed;
 
     bool operator ==(_event other) const {
-		return seqn == other.seqn && commited == other.commited;
+		return seqn == other.seqn && committed == other.committed;
 	}
 
 } event;
@@ -96,7 +96,6 @@ public:
     static void *readCommandsHandler(void *handlerArgs);
     static void *sendNotificationsHandler(void *handlerArgs);
 
-
     void print_users_unread_notifications();
     void print_sessions();
     void print_active_notifications();
@@ -112,14 +111,8 @@ public:
 
     
 private: 
-    pthread_mutex_t mutex_session;
-    pthread_mutex_t follow_mutex;
-    pthread_mutex_t follower_count_mutex;
     pthread_mutex_t packetsToBeSentMutex;
-
     pthread_cond_t 	cond_notification_empty, cond_notification_full;
-    pthread_mutex_t mutex_notification_sender;
-
     pthread_mutex_t seqn_transaction_serializer;
 
     uint32_t notification_id_counter;
@@ -149,13 +142,12 @@ private:
     vector<notification> COPY_active_notifications;
     map< host_address, priority_queue< uint32_t, vector<uint32_t>, greater<uint32_t> > > COPY_active_users_pending_notifications;
 
-    void deepcopy_user_sessions_semaphore(map<string, sem_t> from, map<string, sem_t> *to);
-    void deepcopy_sessions(map< string, list<host_address> > from, map< string, list<host_address> > *to);
-    void deepcopy_users_unread_notifications(map< string, list<uint32_t> > from, map< string, list<uint32_t> > *to);
-    void deepcopy_followers(map< string, list<string> > from, map< string, list<string> > *to);
-    void deepcopy_active_notifications(vector<notification> from, vector<notification> *to);
-    void deepcopy_active_users_pending_notifications(map< host_address, priority_queue< uint32_t, vector<uint32_t>, greater<uint32_t>>> from, 
-                                                     map< host_address, priority_queue< uint32_t, vector<uint32_t>, greater<uint32_t>>> *to);
+    void deepcopy_user_sessions_semaphore(bool save);
+    void deepcopy_sessions(bool save);
+    void deepcopy_users_unread_notifications(bool save);
+    void deepcopy_followers(bool save);
+    void deepcopy_active_notifications(bool save);
+    void deepcopy_active_users_pending_notifications(bool save);
   
 };
 
