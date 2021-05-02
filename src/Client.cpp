@@ -64,6 +64,8 @@ void Client::connectToPrimaryServer(bool reestablishingConnection){
         cout << "Trying to connect to server...\n\n";
     
     int i = 0;
+    // MUDAR ISSO AQUIIIIIIIIIIIIIIIIIII
+    /*
     while (!(this->socket.connectToServer(this->serverAddress.c_str(), possiblePorts[i])) && (i <= possiblePorts.size())){
 
         if (i == possiblePorts.size()){
@@ -74,7 +76,7 @@ void Client::connectToPrimaryServer(bool reestablishingConnection){
             exit(1);
         }
         i++;
-    }
+    }*/
     this->socket.sendPacket(Packet(CLIENT_CONNECTING, ""));
 
     // Wait for server message telling who's the primary server
@@ -296,7 +298,7 @@ void *Client::do_threadReceiver(void* arg){
 bool ClientSocket::connectToServer(){
     struct sockaddr_in serv_addr;
     struct hostent *server;
-	server = gethostbyname(SERVER_ADDR);
+	server = gethostbyname(SERVER_ADDR1);
 
     serv_addr.sin_family = AF_INET;     
 	serv_addr.sin_port = htons(PORT);    

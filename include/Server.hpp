@@ -58,21 +58,26 @@ typedef struct _event {
 class Server
 {
 public:
-    Server(int port);
+    Server(map<string, int> possibleServerAddresses);
     Server(host_address addr);
-    string ip; 
+
+    string ip;
     int port;
     int id;
-    vector<int> possibleServerPeerPorts; 
-    int portPrimarySever;
+
+    string primarySeverIP;
+    int primarySeverPort;
+    int primarySeverID;
+
     bool backupMode; 
     bool electionStarted;
     bool gotAnsweredInElection;
 
     vector<event> event_history; 
 
-    //vector<Packet> packetsToBeSent;
-    map<int, Socket> connectedServers;
+
+    map<int, Socket*> connectedServers;         // <id, connected socket object>
+    map<string, int> possibleServerAddresses;   // <Ip address, port>
 
     bool try_to_start_session(string user, host_address address);
     void follow_user(string user, string user_to_follow);
@@ -81,14 +86,22 @@ public:
     void retrieve_notifications_from_offline_period(string user, host_address addr);
     void read_notifications(host_address addr, vector<notification>* notifications);
 
-    void updatePossibleServerPeerPorts();
+    void updatePrimaryServerInfo(string ip, int listeningPort, int id);
+    void updatePrimaryServerInfo(string ip, int listeningPort);
+    void removeSelfFromPossibleServerAddresses();
     void setAsPrimaryServer();
     void sendPacketToAllServersInTheGroup(Packet p);
     void sendElectionPacketForGreaterIds();
+    void sendMessagesForConnectionEstablishment(Socket* peerConnectedSocket, int peerID);
 
-    static void *groupCommunicationHandler(void *handlerArgs);
+    static pair<string, int> getIpPortFromAddressString(string addressString);
+    static int getIdFromAddress(string ip, int port);
+    void setAddress(string ip, int port);
+    void addPeerToConnectedServers(int peerID, Socket* connectedSocket);
+    void removePeerFromConnectedServers(int peerID);
+
+
     static void *groupReadMessagesHandler(void *handlerArgs);
-    static void *groupSendMessagesHandler(void *handlerArgs);
     static void *electionTimeoutHandler(void *handlerArgs);
 
 
@@ -115,7 +128,8 @@ private:
     pthread_mutex_t mutex_session;
     pthread_mutex_t follow_mutex;
     pthread_mutex_t follower_count_mutex;
-    pthread_mutex_t packetsToBeSentMutex;
+    pthread_mutex_t connectedServersMutex;
+    pthread_mutex_t electionMutex;
 
     pthread_cond_t 	cond_notification_empty, cond_notification_full;
     pthread_mutex_t mutex_notification_sender;
@@ -168,11 +182,9 @@ struct communiction_handler_args {
 };
 
 struct group_communiction_handler_args {
-    int peerPort;
+    int peerID;
     Socket* connectedSocket;
     Server* server;
-    bool isAcceptingConnection;  // Wether the connection started by this server instance was by accepting (true),
-                                 // where the opposite would be it trying to connect to other instance (false)
 };
 
 
@@ -184,7 +196,7 @@ class ServerSocket : public Socket {
 		void bindAndListen(Server* server);
 		void connectNewClientOrServer(pthread_t *threadID, Server *server);
         void connectToGroupMembers(Server* server);
-        bool connectToMember(sockaddr_in serv_addr, Server* server);
+        bool connectToMember(sockaddr_in serv_addr, string ip, Server* server);
 
 		ServerSocket();
 };

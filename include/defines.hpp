@@ -14,7 +14,7 @@ enum{
     CURRENT_PRIMARY,            // Message containing who's the current primary server
     USER_INFO_RECONNECT,        // Client message to inform the user it has a session opened before primary went down
     ASK_PRIMARY,                // Backup server sends message asking who's the primary server (what's its port)
-    PRIMARY_SERVER_PORT,        // Answer of what's the port for the primary server
+    PRIMARY_SERVER_ADDRESS,     // Answer of what's the address for the primary server, payload format: "addr:port", exaple: "127.0.0.1:4000"
     SERVER_PEER_CONNECTING,     // Used to inform that the established connection is server-server
     CLIENT_CONNECTING,          //  Used to inform that the established connection is client-server
     
@@ -51,14 +51,31 @@ enum{
 #define LF 10
 #endif 
 
-#ifndef SERVER_ADDR
-#define SERVER_ADDR "127.0.0.1"
-#endif
-
 #ifndef MAX_TCP_CONNECTIONS
 #define MAX_TCP_CONNECTIONS 256
 #endif
 
+#ifndef ELECTION_TIMEOUT
+#define ELECTION_TIMEOUT 2
+#endif
+
+
+// MUDAR ISSO AQUI QUANDO IMPLEMENTAR O TRECO DO ARQUIVO
+#ifndef SERVER_ADDR1
+#define SERVER_ADDR1 "127.0.0.1"
+#endif
+
+#ifndef SERVER_ADDR2
+#define SERVER_ADDR2 "127.0.0.2"
+#endif
+
+#ifndef SERVER_ADDR3
+#define SERVER_ADDR3 "127.0.0.3"
+#endif
+
+#ifndef SERVER_ADDR4
+#define SERVER_ADDR4 "127.0.0.4"
+#endif
 
 #ifndef PORT_BAND
 #define PORT_BAND
@@ -69,5 +86,3 @@ enum{
     PORT3           // Backup 3
 };
 #endif
-
-extern std::vector<int> possiblePorts;
