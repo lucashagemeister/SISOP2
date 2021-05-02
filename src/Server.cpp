@@ -11,6 +11,7 @@ Server::Server(map<string, int> possibleServerAddresses)
     this->possibleServerAddresses = possibleServerAddresses;
 
     this->notification_id_counter = 0;
+
     mutex_session = PTHREAD_MUTEX_INITIALIZER;
     follow_mutex = PTHREAD_MUTEX_INITIALIZER;
     follower_count_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -21,6 +22,7 @@ Server::Server(map<string, int> possibleServerAddresses)
     pthread_mutex_init(&mutex_notification_sender, NULL);
     pthread_mutex_init(&connectedServersMutex, NULL);
     pthread_mutex_init(&electionMutex, NULL);
+
     pthread_mutex_init(&seqn_transaction_serializer, NULL);
 }
 
@@ -42,8 +44,8 @@ Server::Server(host_address address)
     pthread_mutex_init(&mutex_notification_sender, NULL);
     pthread_mutex_init(&connectedServersMutex, NULL);
     pthread_mutex_init(&electionMutex, NULL);
-    pthread_mutex_init(&seqn_transaction_serializer, NULL);
 
+    pthread_mutex_init(&seqn_transaction_serializer, NULL);
 }
 
 
@@ -127,12 +129,12 @@ bool Server::try_to_start_session(string user, host_address address)
 
     event session_event = event(seqn, "SESSION", user, address.ipv4, to_string(address.port), false); // int to string: stoi( str )
 
-    deepcopy_user_sessions_semaphore(user_sessions_semaphore, &COPY_user_sessions_semaphore);
-    deepcopy_sessions(sessions, &COPY_sessions);
-    deepcopy_users_unread_notifications(users_unread_notifications, &COPY_users_unread_notifications);
-    deepcopy_followers(followers, &COPY_followers);
-    deepcopy_active_notifications(COPY_active_notifications, &COPY_active_notifications);
-    deepcopy_active_users_pending_notifications(active_users_pending_notifications, &COPY_active_users_pending_notifications);
+    deepcopy_user_sessions_semaphore(save = true);
+    deepcopy_sessions(save = true);
+    deepcopy_users_unread_notifications(save = true);
+    deepcopy_followers(save = true);
+    deepcopy_active_notifications(save = true);
+    deepcopy_active_users_pending_notifications(save = true);
 
     print_sessions();
     print_COPY_sessions();
@@ -143,17 +145,17 @@ bool Server::try_to_start_session(string user, host_address address)
     {
         sem_t num_sessions;
         sem_init(&num_sessions, 0, 2);
-        COPY_user_sessions_semaphore.insert({user, num_sessions}); // user is created with 2 sessions available
-        COPY_sessions.insert({user, list<host_address>()});
-        COPY_followers.insert(pair<string, list<string>>(user, list<string>()));
-        COPY_users_unread_notifications.insert({user, list<uint32_t>()});
+        user_sessions_semaphore.insert({user, num_sessions}); // user is created with 2 sessions available
+        sessions.insert({user, list<host_address>()});
+        followers.insert(pair<string, list<string>>(user, list<string>()));
+        users_unread_notifications.insert({user, list<uint32_t>()});
     } 
     
-    int session_started = sem_trywait(&(COPY_user_sessions_semaphore[user])); // try to consume a session resource
+    int session_started = sem_trywait(&(user_sessions_semaphore[user])); // try to consume a session resource
     if(session_started == 0) // 0 if session started, -1 if not
     { 
-        COPY_sessions[user].push_back(address);
-        COPY_active_users_pending_notifications.insert({address, priority_queue<uint32_t, vector<uint32_t>, greater<uint32_t>>()});
+        sessions[user].push_back(address);
+        active_users_pending_notifications.insert({address, priority_queue<uint32_t, vector<uint32_t>, greater<uint32_t>>()});
     }
 
     print_sessions();
@@ -161,26 +163,28 @@ bool Server::try_to_start_session(string user, host_address address)
     print_users_unread_notifications();
     print_COPY_users_unread_notifications();
 
-    bool commited;
-    if(backupMode) {
-        commited = wait_primary_commit(session_event);
-    } else {
-        commited = send_backup_change(session_event);
-    }
-
-    if(commited) 
+    bool committed;
+    if (backupMode)
     {
-        deepcopy_user_sessions_semaphore(COPY_user_sessions_semaphore, &user_sessions_semaphore);
-        deepcopy_sessions(COPY_sessions, &sessions);
-        deepcopy_users_unread_notifications(COPY_users_unread_notifications, &users_unread_notifications);
-        deepcopy_followers(COPY_followers, &followers);
-        deepcopy_active_notifications(COPY_active_notifications, &COPY_active_notifications);
-        deepcopy_active_users_pending_notifications(COPY_active_users_pending_notifications, &active_users_pending_notifications);
+        committed = wait_primary_commit(session_event);
+    }
+    else
+    {
+        committed = send_backup_change(session_event);
     }
 
-    session_event.commited = commited;
-    event_history.push_back(session_event);  
+    if (!committed) 
+    {
+        deepcopy_user_sessions_semaphore(save = false);
+        deepcopy_sessions(save = false);
+        deepcopy_users_unread_notifications(save = false);
+        deepcopy_followers(save = false);
+        deepcopy_active_notifications(save = false);
+        deepcopy_active_users_pending_notifications(save = false);
+    }
 
+    session_event.committed = committed;
+    event_history.push_back(session_event);  
 
     print_sessions();
     print_COPY_sessions();
@@ -189,7 +193,7 @@ bool Server::try_to_start_session(string user, host_address address)
     print_events();
 
     pthread_mutex_unlock(&seqn_transaction_serializer);
-    return commited && session_started == 0; 
+    return committed && session_started == 0; 
 }
 
 uint16_t Server::get_current_sequence()
@@ -221,21 +225,25 @@ bool Server::send_backup_change(event e)
     return true;
 }
 
-
 // call this function when new notification is created
 void Server::create_notification(string user, string body, time_t timestamp)
 {
     cout << "\nNew notification!\n";
-    pthread_mutex_lock(&follower_count_mutex);
+    pthread_mutex_lock(&seqn_transaction_serializer);
+    uint16_t seqn = get_current_sequence();
+
+    event create_notification_event = event(seqn, "CREATE_NOTIFICATION", user, body, timestamp, false); 
+
+    deepcopy_followers(save = true);
+    deepcopy_users_unread_notifications(save = true);
+    deepcopy_active_notifications(save = true);
+
     if (followers[user].size() > 0)
     {
         uint16_t pending_users{0};
         for (auto follower : followers[user])
         {                    
-            pthread_mutex_lock(&mutex_notification_sender);
             users_unread_notifications[follower].push_back(notification_id_counter);
-            pthread_mutex_unlock(&mutex_notification_sender);
-
             pending_users++;
         }
 
@@ -244,7 +252,28 @@ void Server::create_notification(string user, string body, time_t timestamp)
         assign_notification_to_active_sessions(notification_id_counter, followers[user]);
         notification_id_counter += 1;
     }
-    pthread_mutex_unlock(&follower_count_mutex);
+
+    bool committed;
+    if (backupMode)
+    {
+        committed = wait_primary_commit(create_notification_event);
+    }
+    else
+    {
+        committed = send_backup_change(create_notification_event);
+    }
+
+    if (!committed)
+    {
+        deepcopy_followers(save = false);
+        deepcopy_users_unread_notifications(save = false);
+        deepcopy_active_notifications(save = false);
+    }
+
+    create_notification_event.committed = committed;
+    event_history.push_back(create_notification_event);
+
+    pthread_mutex_unlock(&seqn_transaction_serializer);
 }
 
 // call this function after new notification is created
@@ -283,7 +312,6 @@ bool Server::user_is_active(string user)
     return sessions.find(user) != sessions.end() && !(sessions[user].empty());
 }
 
-
 // call this function when new session is started (after try_to_start_session()) to wake notification producer to client
 void Server::retrieve_notifications_from_offline_period(string user, host_address addr) 
 {
@@ -303,12 +331,17 @@ void Server::retrieve_notifications_from_offline_period(string user, host_addres
     pthread_mutex_unlock(&mutex_notification_sender);
 }
 
-
 // call this function on consumer thread that will feed the user with its notifications
 void Server::read_notifications(host_address addr, vector<notification>* notifications) 
 {
-    pthread_mutex_lock(&mutex_notification_sender);
-    
+    pthread_mutex_lock(&seqn_transaction_serializer);
+    uint16_t seqn = get_current_sequence();
+
+    event read_notification_event = event(seqn, "READ_NOTIFICATIONS", addr.ipv4, to_string(address.port), notifications, false);
+
+    deepcopy_active_users_pending_notifications(save = true);
+    deepcopy_active_notifications(save = true);
+
     cout << "Reading notifications...\n";
     while (active_users_pending_notifications[addr].empty()) { 
         // sleep while user doesn't have notifications to read
@@ -331,19 +364,43 @@ void Server::read_notifications(host_address addr, vector<notification>* notific
         (active_users_pending_notifications[addr]).pop();
     }
 
+    bool committed;
+    if (backupMode)
+    {
+        committed = wait_primary_commit(read_notification_event);
+    }
+    else
+    {
+        committed = send_backup_change(session_event);
+    }
+
+    if (!committed)
+    {
+        deepcopy_active_users_pending_notifications(save = false);
+        deepcopy_active_notifications(save = false);
+    }
+
+    read_notification_event.commited = committed;
+    event_history.push_back(read_notification_event);
+
     // signal producer
     pthread_cond_signal(&cond_notification_empty);
     pthread_cond_signal(&cond_notification_full); // waking someone again can improve client consuming flow
-    pthread_mutex_unlock(&mutex_notification_sender);
-
+    pthread_mutex_unlock(&seqn_transaction_serializer);
 }
-
 
 // call this function when client presses ctrl+c or ctrl+d
 void Server::close_session(string user, host_address address) 
 {
     pthread_mutex_lock(&mutex_session);
-    
+    uint16_t seqn = get_current_sequence();
+
+    event close_session_event = event(seqn, "CLOSE_SESSION", user, address.ipv4, to_string(address.port), false); // int to string: stoi( str )
+
+    deepcopy_active_users_pending_notifications(save = true);
+    deepcopy_sessions(save = true);
+    deepcopy_user_sessions_semaphore(save = true);
+
     list<host_address>::iterator it = find(sessions[user].begin(), sessions[user].end(), address);
     if(it != sessions[user].end()) // remove address from sessions map and < (ip, port), notification to send > 
     {
@@ -353,25 +410,85 @@ void Server::close_session(string user, host_address address)
         // signal semaphore
         sem_post(&(user_sessions_semaphore[user]));
     }
+
+    bool committed;
+    if (backupMode)
+    {
+        committed = wait_primary_commit(session_event);
+    }
+    else
+    {
+        commited = send_backup_change(session_event);
+    }
+
+    if (!committed)
+    {
+        deepcopy_active_users_pending_notifications(save = false);
+        deepcopy_sessions(save = false);
+        deepcopy_user_sessions_semaphore(save = false);
+    }
+
+    close_session_event.committed = committed;
+    event_history.push_back(close_session_event);
+
     pthread_mutex_unlock(&mutex_session);
 }
 
 
 void Server::follow_user(string user, string user_to_follow)
 {
-    pthread_mutex_lock(&follower_count_mutex);
+    pthread_mutex_lock(&seqn_transaction_serializer);
+    uint16_t seqn = get_current_sequence();
 
-    if (find(followers[user_to_follow].begin(), followers[user_to_follow].end(), user) == followers[user_to_follow].end())
+    event follow_event = event(seqn, "FOLLOW", user, user_to_follow, null, false);
+
+    deepcopy_user_sessions_semaphore(save = true);
+    deepcopy_followers(save = true);
+
+    if (find(followers[user_to_follow].begin(), followers[user_to_follow].end(), user) == followers[user_to_follow].end()
+        && user_exists(user_to_follow))
     {
         followers[user_to_follow].push_back(user);
     }
 
-    pthread_mutex_unlock(&follower_count_mutex);
+    bool committed;
+    if (backupMode)
+    {
+        committed = wait_primary_commit(follow_event);
+    }
+    else
+    {
+        committed = send_backup_change(follow_event);
+    }
+
+    if (!committed)
+    {
+        deepcopy_user_sessions_semaphore(save = false);
+        deepcopy_followers(save = false);
+    }
+
+    follow_event.committed = committed;
+    event_history.push_back(follow_event);
+
+    pthread_mutex_unlock(&seqn_transaction_serializer);
 }
 
-
-void Server::deepcopy_user_sessions_semaphore(map<string, sem_t> from, map<string, sem_t>* to)
+void Server::deepcopy_user_sessions_semaphore(bool save)
 {
+    map<string, sem_t> from;
+    map<string, sem_t>* to;
+
+    if (save)
+    {
+        from = user_sessions_semaphore;
+        to = &COPY_user_sessions_semaphore;
+    }
+    else
+    {
+        from = COPY_user_sessions_semaphore;
+        to = &user_sessions_semaphore;
+    }
+
     to->clear();
 
     for(auto it = from.begin(); it != from.end(); it++)
@@ -384,8 +501,23 @@ void Server::deepcopy_user_sessions_semaphore(map<string, sem_t> from, map<strin
         to->insert({it->first, num_sessions});
     }
 }
-void Server::deepcopy_sessions(map< string, list<host_address> > from, map< string, list<host_address> >* to)
+
+void Server::deepcopy_sessions(bool save)
 {
+    map< string, list<host_address> > from;
+    map< string, list<host_address> >* to;
+
+    if (save)
+    {
+        from = sessions;
+        to = &COPY_sessions;
+    }
+    else
+    {
+        from = COPY_sessions;
+        to = &sessions;
+    }
+
     to->clear();
 
     for(auto it = from.begin(); it != from.end(); it++)
@@ -401,8 +533,23 @@ void Server::deepcopy_sessions(map< string, list<host_address> > from, map< stri
         to->insert({it->first, addresses});
     }
 }
-void Server::deepcopy_users_unread_notifications(map< string, list< uint32_t>> from, map< string, list< uint32_t>>* to) 
+
+void Server::deepcopy_users_unread_notifications(bool save) 
 {
+    map< string, list< uint32_t>> from;
+    map< string, list< uint32_t>>* to;
+
+    if (save)
+    {
+        from = users_unread_notifications;
+        to = &COPY_users_unread_notifications;
+    }
+    else
+    {
+        from = COPY_users_unread_notifications;
+        to = &users_unread_notifications;
+    }
+
     to->clear();
 
     for(auto it = from.begin(); it != from.end(); it++)
@@ -415,8 +562,23 @@ void Server::deepcopy_users_unread_notifications(map< string, list< uint32_t>> f
         to->insert({it->first, notifications});
     }
 }
-void Server::deepcopy_followers(map<string, list<string>> from, map<string, list<string>>* to)
+
+void Server::deepcopy_followers(bool save)
 {
+    map<string, list<string>> from;
+    map<string, list<string>>* to;
+
+    if (save)
+    {
+        from = followers;
+        to = &COPY_followers;
+    }
+    else
+    {
+        from = COPY_followers;
+        to = &followers;
+    }
+
     to->clear();
 
     for(auto it = from.begin(); it != from.end(); it++)
@@ -429,8 +591,23 @@ void Server::deepcopy_followers(map<string, list<string>> from, map<string, list
         to->insert({it->first, notifications});
     }
 }
-void Server::deepcopy_active_notifications(vector<notification> from, vector<notification>* to)
+
+void Server::deepcopy_active_notifications(bool save)
 {
+    vector<notification> from;
+    vector<notification>* to;
+
+    if (save)
+    {
+        from = active_notifications;
+        to = &COPY_active_notifications;
+    }
+    else
+    {
+        from = COPY_active_notifications;
+        to = &active_notifications;
+    }
+
     to->clear();
 
     for(auto it = from.begin(); it != from.end(); it++)
@@ -438,9 +615,23 @@ void Server::deepcopy_active_notifications(vector<notification> from, vector<not
         to->push_back(*it);
     }
 }
-void Server::deepcopy_active_users_pending_notifications(map< host_address, priority_queue< uint32_t, vector<uint32_t>, greater<uint32_t>>> from, 
-                                                         map< host_address, priority_queue< uint32_t, vector<uint32_t>, greater<uint32_t>>>* to)
+
+void Server::deepcopy_active_users_pending_notifications(bool save)
 {
+    map< host_address, priority_queue< uint32_t, vector<uint32_t>, greater<uint32_t>>> from;
+    map< host_address, priority_queue< uint32_t, vector<uint32_t>, greater<uint32_t>>>* to;
+
+    if (save)
+    {
+        from = active_users_pending_notifications;
+        to = &COPY_active_users_pending_notifications;
+    }
+    else
+    {
+        from = COPY_active_users_pending_notifications;
+        to = &active_users_pending_notifications;
+    }
+
     to->clear();
 
     for(auto it = from.begin(); it != from.end(); it++)
@@ -463,7 +654,6 @@ void Server::deepcopy_active_users_pending_notifications(map< host_address, prio
         to->insert({it->first, temp_queue});
     }
 }
-
 
 void Server::print_users_unread_notifications() 
 {
@@ -540,7 +730,7 @@ void Server::print_events()
         cout << it->arg1 << ", ";
         cout << it->arg2 << ", ";
         cout << it->arg3 << "), [";
-        cout << it->commited << "]\n";
+        cout << it->committed << "]\n";
     }
 }
 
@@ -643,7 +833,6 @@ void *Server::electionTimeoutHandler(void *handlerArgs){
             sleep(ELECTION_TIMEOUT);
             if(!server->gotAnsweredInElection){
                 cout << "Didn't receive any ANSWER packets before timeout. Autoelecting as primary server...\n\n";
-                server->sendPacketToAllServersInTheGroup(Packet(COORDINATOR, myAddressString.c_str()));
                 server->setAsPrimaryServer();
                 pthread_mutex_lock(&server->electionMutex);
                 server->electionStarted = false;
@@ -738,7 +927,6 @@ void Server::sendMessagesForConnectionEstablishment(Socket* connectedSocket, int
         return;
     }
         
-
     if (this->backupMode){    // Asks peer who's the primary server
         int primaryServerPort;
 
