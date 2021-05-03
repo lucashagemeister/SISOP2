@@ -5,11 +5,10 @@ using namespace std;
 
 
 
-Client::Client(string user, int serverPort, string serverAddress){
+Client::Client(string user, map<string, int> possibleServerAddresses){
     
-    this->serverPort = serverPort;
-    this->serverAddress = serverAddress;
     this->user = user;
+    this->possibleServerAddresses = possibleServerAddresses;
     this->establishConnection();
 
     pthread_mutex_init(&mutex_print, NULL);
@@ -63,20 +62,28 @@ void Client::connectToPrimaryServer(bool reestablishingConnection){
     if(!reestablishingConnection)
         cout << "Trying to connect to server...\n\n";
     
-    int i = 0;
-    // MUDAR ISSO AQUIIIIIIIIIIIIIIIIIII
-    /*
-    while (!(this->socket.connectToServer(this->serverAddress.c_str(), possiblePorts[i])) && (i <= possiblePorts.size())){
+    string serverIP;
+    int serverPort;
+    bool noConnections = true;
+    for (auto &possibleAddress : this->possibleServerAddresses){
+        
+        serverIP = possibleAddress.first;
+        serverPort = possibleAddress.second;
 
-        if (i == possiblePorts.size()){
-            if(reestablishingConnection)
-                cout << "ERROR lost connection to server!\n";
-            else
-                cout << "ERROR all servers seem to be down! Aborting...\n";
-            exit(1);
+        if (this->socket.connectToServer(serverIP.c_str(), serverPort)){
+            noConnections = false;
         }
-        i++;
-    }*/
+    }
+
+    if (noConnections){
+        if(reestablishingConnection)
+            cout << "ERROR lost connection to server!\n";
+        else
+            cout << "ERROR all servers seem to be down! Aborting...\n";
+        exit(1);
+    }
+
+    // Else
     this->socket.sendPacket(Packet(CLIENT_CONNECTING, ""));
 
     // Wait for server message telling who's the primary server
@@ -86,20 +93,19 @@ void Client::connectToPrimaryServer(bool reestablishingConnection){
     if (primaryServerIpAddress->getType() == ALREADY_PRIMARY)
         return;
     
-
-    //else
-    this->serverAddress = primaryServerIpAddress->getPayload();
+    // Else
+    serverIP = primaryServerIpAddress->getPayload();
 
     Packet *primaryServerPort;
     primaryServerPort = this->socket.readPacket();
 
-    this->serverPort = atoi(primaryServerPort->getPayload());
+    serverPort = atoi(primaryServerPort->getPayload());
     
     // Closes connection and reopen socket to connect to the primary server
     close(this->socket.getSocketfd());
     this->socket = ClientSocket();
 
-    if (!this->socket.connectToServer(this->serverAddress.c_str(), this->serverPort)){
+    if (!this->socket.connectToServer(serverIP.c_str(), serverPort)){
         if(reestablishingConnection)
             cout << "ERROR lost connection to server!\n";
         else

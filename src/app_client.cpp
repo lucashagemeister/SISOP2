@@ -8,16 +8,25 @@ int main(int argc, char **argv) {
   pthread_t threadControl;
 
 
-  if (argc < 3) {
-    fprintf(stderr,"ERROR too few arguments, provide <user> <server_address> and <server_port>\n");
+  if (argc < 1) {
+    fprintf(stderr,"ERROR you must an username as argument.\n");
     exit(0);
   }
 
   string user = argv[1];
-  string serverAddress = argv[2];
-  int serverPort = atoi(argv[3]);
 
-  client = new Client(user, serverPort, serverAddress);
+
+  map<string, int> possibleServerAddresses;
+	// #####################################################################
+	// LER ESSAS INFORMAÇÕES DE UM ARQUIVO DE CONFIGURAÇÃO
+	possibleServerAddresses.insert(pair<string, int>(SERVER_ADDR1, PORT));
+	possibleServerAddresses.insert(pair<string, int>(SERVER_ADDR2, PORT1));
+	possibleServerAddresses.insert(pair<string, int>(SERVER_ADDR3, PORT2));
+	possibleServerAddresses.insert(pair<string, int>(SERVER_ADDR4, PORT3));
+	// #####################################################################
+
+
+  client = new Client(user, possibleServerAddresses);
 
   pthread_create(&threadControl, NULL, Client::controlThread, (void *)client);
   pthread_create(&threadReceiver, NULL, Client::do_threadReceiver, (void *)client);
