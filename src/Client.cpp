@@ -5,11 +5,10 @@ using namespace std;
 
 
 
-Client::Client(string user, int serverPort, string serverAddress){
+Client::Client(string user, map<string, int> possibleServerAddresses){
     
-    this->serverPort = serverPort;
-    this->serverAddress = serverAddress;
     this->user = user;
+    this->possibleServerAddresses = possibleServerAddresses;
     this->establishConnection();
 
     pthread_mutex_init(&mutex_print, NULL);
@@ -22,7 +21,7 @@ Client::Client(string user, int serverPort, string serverAddress){
 void Client::establishConnection(){
 
     this->connectToPrimaryServer(false);  // exit(1) if fails to connect
-    this->originalClientPort = this->socket.getSocketfd(); 
+    this->originalClientPort = this->socket.getClientPort();
 
     cout << "Connected to server! Trying to send packet with user info..." << "\n\n";
 
@@ -55,51 +54,68 @@ void Client::reestablishConnection(){
     // Send user information to initiate session
     Packet userInfoPacket = Packet(USER_INFO_RECONNECT, this->user.c_str());
     this->socket.sendPacket(userInfoPacket);
+
+    // Send previous connected port used to identify session
+    Packet originalClientPort = Packet(MESSAGE_PKT, to_string(this->originalClientPort).c_str());
+    this->socket.sendPacket(originalClientPort);
 }
 
 
 void Client::connectToPrimaryServer(bool reestablishingConnection){
 
-    if(!reestablishingConnection)
+    if(reestablishingConnection){
+        close(this->socket.getSocketfd());
+        this->socket = *(new ClientSocket());
+        sleep(4);
+    }
+    else 
         cout << "Trying to connect to server...\n\n";
-    
-    int i = 0;
-    // MUDAR ISSO AQUIIIIIIIIIIIIIIIIIII
-    /*
-    while (!(this->socket.connectToServer(this->serverAddress.c_str(), possiblePorts[i])) && (i <= possiblePorts.size())){
 
-        if (i == possiblePorts.size()){
-            if(reestablishingConnection)
-                cout << "ERROR lost connection to server!\n";
-            else
-                cout << "ERROR all servers seem to be down! Aborting...\n";
-            exit(1);
+    
+    string serverIP;
+    int serverPort;
+    bool noConnections = true;
+    for (auto &possibleAddress : this->possibleServerAddresses){
+        
+        serverIP = possibleAddress.first;
+        serverPort = possibleAddress.second;
+
+        if (this->socket.connectToServer(serverIP.c_str(), serverPort)){
+            noConnections = false;
+            break;
         }
-        i++;
-    }*/
+    }
+
+    if (noConnections){
+        if(reestablishingConnection)
+            cout << "ERROR lost connection to server!\n";
+        else
+            cout << "ERROR all servers seem to be down! Aborting...\n";
+        exit(1);
+    }
+
+    // Else
     this->socket.sendPacket(Packet(CLIENT_CONNECTING, ""));
 
     // Wait for server message telling who's the primary server
     Packet *primaryServerIpAddress;
     primaryServerIpAddress = this->socket.readPacket();
-
     if (primaryServerIpAddress->getType() == ALREADY_PRIMARY)
         return;
     
-
-    //else
-    this->serverAddress = primaryServerIpAddress->getPayload();
+    // Else
+    serverIP = primaryServerIpAddress->getPayload();
 
     Packet *primaryServerPort;
     primaryServerPort = this->socket.readPacket();
-
-    this->serverPort = atoi(primaryServerPort->getPayload());
+    serverPort = atoi(primaryServerPort->getPayload());
     
     // Closes connection and reopen socket to connect to the primary server
     close(this->socket.getSocketfd());
-    this->socket = ClientSocket();
+    this->socket = *(new ClientSocket());
 
-    if (!this->socket.connectToServer(this->serverAddress.c_str(), this->serverPort)){
+
+    if (!this->socket.connectToServer(serverIP.c_str(), serverPort)){
         if(reestablishingConnection)
             cout << "ERROR lost connection to server!\n";
         else
@@ -277,8 +293,10 @@ void *Client::do_threadReceiver(void* arg){
     while (true) {    
         
         readPacket = client->socket.readPacket();
-        if (readPacket == NULL) // Connection lost
-            client->reestablishConnection();  
+        if (readPacket == NULL){ // Connection lost
+            client->reestablishConnection();
+            continue; // next loop to read packet again  
+        }
 
         pthread_mutex_lock(&(client->mutex_print));
             if (readPacket->getType() == NOTIFICATION_PKT){
@@ -328,4 +346,11 @@ bool ClientSocket::connectToServer(const char* serverAddress, int serverPort){
         return false;
     
     return true;
+}
+
+int ClientSocket::getClientPort(){
+    struct sockaddr_in sin;
+    socklen_t len = sizeof(sin);
+    getsockname(this->getSocketfd(), (struct sockaddr *)&sin, &len);
+    return ntohs(sin.sin_port);
 }

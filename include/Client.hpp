@@ -5,6 +5,7 @@
 #include <string>
 #include <list>
 #include <vector>
+#include <map>
 #include "Socket.hpp"
 
 
@@ -12,6 +13,7 @@ class ClientSocket : public Socket {
 	public:
 		bool connectToServer();
 		bool connectToServer(const char* serverAddress, int serverPort);
+        int getClientPort();
 };
 
 
@@ -21,11 +23,10 @@ public:
     string user;
     int originalClientPort;  // Required to inform in a reconnection which port it was firstly running, 
                              // which is an information used to control sessions.
-    int serverPort;
-    string serverAddress;
+    map<string, int> possibleServerAddresses;   // <ip, port>
     ClientSocket socket;
     
-    Client(string user, int serverPort, string serverAddress);
+    Client(string user, map<string, int> possibleServerAddresses);
     static void *do_threadSender(void* arg);
 	static void *do_threadReceiver(void* arg);
     static void *controlThread(void* arg);
