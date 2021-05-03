@@ -19,7 +19,6 @@ Server::Server(map<string, int> possibleServerAddresses)
 
     pthread_cond_init(&cond_notification_empty, NULL);
     pthread_cond_init(&cond_notification_full, NULL);
-    pthread_mutex_init(&mutex_notification_sender, NULL);
     pthread_mutex_init(&connectedServersMutex, NULL);
     pthread_mutex_init(&electionMutex, NULL);
 
@@ -41,7 +40,6 @@ Server::Server(host_address address)
 
     pthread_cond_init(&cond_notification_empty, NULL);
     pthread_cond_init(&cond_notification_full, NULL);
-    pthread_mutex_init(&mutex_notification_sender, NULL);
     pthread_mutex_init(&connectedServersMutex, NULL);
     pthread_mutex_init(&electionMutex, NULL);
 
@@ -122,6 +120,7 @@ void Server::setAsPrimaryServer(){
 // se não tiver um host_address, eu posso fazer e devolver um session_id
 bool Server::try_to_start_session(string user, host_address address)
 {
+    cout << "\nTrying to start session\n";
     pthread_mutex_lock(&seqn_transaction_serializer);
     uint16_t seqn = get_current_sequence();
 
@@ -190,6 +189,7 @@ bool Server::try_to_start_session(string user, host_address address)
     print_COPY_users_unread_notifications();
     print_events();
 
+    cout << "\nEND Trying to start session\n";
     pthread_mutex_unlock(&seqn_transaction_serializer);
     return committed && session_started == 0; 
 }
@@ -270,7 +270,7 @@ void Server::create_notification(string user, string body, time_t timestamp)
 
     create_notification_event.committed = committed;
     event_history.push_back(create_notification_event);
-
+    cout << "\nEND New notification!\n";
     pthread_mutex_unlock(&seqn_transaction_serializer);
 }
 
@@ -279,7 +279,6 @@ void Server::assign_notification_to_active_sessions(uint32_t notification_id, li
 {
     cout << "\nAssigning new notification to active sessions...\n";
     
-    pthread_mutex_lock(&mutex_notification_sender);
     for (auto user : followers)
     {
         if(user_is_active(user)) 
@@ -301,7 +300,7 @@ void Server::assign_notification_to_active_sessions(uint32_t notification_id, li
             }
         }
     }
-    pthread_mutex_unlock(&mutex_notification_sender);
+    cout << "\nEND Assigning new notification to active sessions...\n";
 
 }
 
@@ -315,7 +314,7 @@ void Server::retrieve_notifications_from_offline_period(string user, host_addres
 {
     cout << "\nGetting notifications from offline period to active sessions...\n";
     //print_users_unread_notifications();
-    pthread_mutex_lock(&mutex_notification_sender);
+    pthread_mutex_lock(&seqn_transaction_serializer);
     
     for(auto notification_id : users_unread_notifications[user]) 
     {
@@ -324,15 +323,17 @@ void Server::retrieve_notifications_from_offline_period(string user, host_addres
     
     (users_unread_notifications[user]).clear();
 
+    cout << "\nEND Getting notifications from offline period to active sessions...\n";
     // signal consumer
     pthread_cond_signal(&cond_notification_full);
-    pthread_mutex_unlock(&mutex_notification_sender);
+    pthread_mutex_unlock(&seqn_transaction_serializer);
 }
 
 // call this function on consumer thread that will feed the user with its notifications
 void Server::read_notifications(host_address addr, vector<notification>* notifications) 
 {
     pthread_mutex_lock(&seqn_transaction_serializer);
+    cout << "\nReading notifications of active session...\n";
     uint16_t seqn = get_current_sequence();
 
     event read_notification_event = event(seqn, "READ_NOTIFICATIONS", addr.ipv4, to_string(addr.port), "", false);
@@ -344,7 +345,7 @@ void Server::read_notifications(host_address addr, vector<notification>* notific
     while (active_users_pending_notifications[addr].empty()) { 
         // sleep while user doesn't have notifications to read
         cout << "No notifications for address " << addr.ipv4 <<":"<< addr.port << ". Sleeping...\n";
-        pthread_cond_wait(&cond_notification_full, &mutex_notification_sender); 
+        pthread_cond_wait(&cond_notification_full, &seqn_transaction_serializer); 
     }
     cout << "Assembling notifications...\n";
     while(!active_users_pending_notifications[addr].empty()) 
@@ -381,6 +382,8 @@ void Server::read_notifications(host_address addr, vector<notification>* notific
     read_notification_event.committed = committed;
     event_history.push_back(read_notification_event);
 
+
+    cout << "\nEND Reading notifications of active session...\n";
     // signal producer
     pthread_cond_signal(&cond_notification_empty);
     pthread_cond_signal(&cond_notification_full); // waking someone again can improve client consuming flow
