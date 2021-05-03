@@ -127,7 +127,6 @@ private:
     pthread_mutex_t mutex_session;
     pthread_mutex_t follow_mutex;
     pthread_mutex_t follower_count_mutex;
-    pthread_mutex_t mutex_notification_sender;
     pthread_mutex_t connectedServersMutex;
     pthread_mutex_t electionMutex;
 
