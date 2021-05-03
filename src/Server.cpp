@@ -337,7 +337,7 @@ void Server::read_notifications(host_address addr, vector<notification>* notific
     pthread_mutex_lock(&seqn_transaction_serializer);
     uint16_t seqn = get_current_sequence();
 
-    event read_notification_event = event(seqn, "READ_NOTIFICATIONS", addr.ipv4, to_string(addr.port), nullptr, false);
+    event read_notification_event = event(seqn, "READ_NOTIFICATIONS", addr.ipv4, to_string(addr.port), "", false);
 
     deepcopy_active_users_pending_notifications(true);
     deepcopy_active_notifications(true);
@@ -440,7 +440,7 @@ void Server::follow_user(string user, string user_to_follow)
     pthread_mutex_lock(&seqn_transaction_serializer);
     uint16_t seqn = get_current_sequence();
 
-    event follow_event = event(seqn, "FOLLOW", user, user_to_follow, nullptr, false);
+    event follow_event = event(seqn, "FOLLOW", user, user_to_follow, "", false);
 
     deepcopy_user_sessions_semaphore(true);
     deepcopy_followers(true);

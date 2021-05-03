@@ -133,6 +133,7 @@ private:
 
     pthread_cond_t 	cond_notification_empty, cond_notification_full;
     pthread_mutex_t seqn_transaction_serializer;
+    pthread_mutex_t mutex_notification_sender;
 
     uint32_t notification_id_counter;
 
