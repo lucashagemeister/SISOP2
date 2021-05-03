@@ -21,7 +21,7 @@ Client::Client(string user, map<string, int> possibleServerAddresses){
 void Client::establishConnection(){
 
     this->connectToPrimaryServer(false);  // exit(1) if fails to connect
-    this->originalClientPort = this->socket.getSocketfd(); 
+    this->originalClientPort = this->socket.getClientPort();
 
     cout << "Connected to server! Trying to send packet with user info..." << "\n\n";
 
@@ -54,13 +54,23 @@ void Client::reestablishConnection(){
     // Send user information to initiate session
     Packet userInfoPacket = Packet(USER_INFO_RECONNECT, this->user.c_str());
     this->socket.sendPacket(userInfoPacket);
+
+    // Send previous connected port used to identify session
+    Packet originalClientPort = Packet(MESSAGE_PKT, to_string(this->originalClientPort).c_str());
+    this->socket.sendPacket(originalClientPort);
 }
 
 
 void Client::connectToPrimaryServer(bool reestablishingConnection){
 
-    if(!reestablishingConnection)
+    if(reestablishingConnection){
+        close(this->socket.getSocketfd());
+        this->socket = *(new ClientSocket());
+        sleep(4);
+    }
+    else 
         cout << "Trying to connect to server...\n\n";
+
     
     string serverIP;
     int serverPort;
@@ -72,6 +82,7 @@ void Client::connectToPrimaryServer(bool reestablishingConnection){
 
         if (this->socket.connectToServer(serverIP.c_str(), serverPort)){
             noConnections = false;
+            break;
         }
     }
 
@@ -89,7 +100,6 @@ void Client::connectToPrimaryServer(bool reestablishingConnection){
     // Wait for server message telling who's the primary server
     Packet *primaryServerIpAddress;
     primaryServerIpAddress = this->socket.readPacket();
-
     if (primaryServerIpAddress->getType() == ALREADY_PRIMARY)
         return;
     
@@ -98,12 +108,12 @@ void Client::connectToPrimaryServer(bool reestablishingConnection){
 
     Packet *primaryServerPort;
     primaryServerPort = this->socket.readPacket();
-
     serverPort = atoi(primaryServerPort->getPayload());
     
     // Closes connection and reopen socket to connect to the primary server
     close(this->socket.getSocketfd());
-    this->socket = ClientSocket();
+    this->socket = *(new ClientSocket());
+
 
     if (!this->socket.connectToServer(serverIP.c_str(), serverPort)){
         if(reestablishingConnection)
@@ -283,8 +293,10 @@ void *Client::do_threadReceiver(void* arg){
     while (true) {    
         
         readPacket = client->socket.readPacket();
-        if (readPacket == NULL) // Connection lost
-            client->reestablishConnection();  
+        if (readPacket == NULL){ // Connection lost
+            client->reestablishConnection();
+            continue; // next loop to read packet again  
+        }
 
         pthread_mutex_lock(&(client->mutex_print));
             if (readPacket->getType() == NOTIFICATION_PKT){
@@ -334,4 +346,11 @@ bool ClientSocket::connectToServer(const char* serverAddress, int serverPort){
         return false;
     
     return true;
+}
+
+int ClientSocket::getClientPort(){
+    struct sockaddr_in sin;
+    socklen_t len = sizeof(sin);
+    getsockname(this->getSocketfd(), (struct sockaddr *)&sin, &len);
+    return ntohs(sin.sin_port);
 }

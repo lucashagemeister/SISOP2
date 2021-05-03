@@ -95,7 +95,6 @@ void Server::setAddress(string ip, int port){
 
 
 void Server::addPeerToConnectedServers(int peerID, Socket* connectedSocket){
-    cout << "adding peer with id: " << peerID << "\n";
     pthread_mutex_lock(&this->connectedServersMutex);
     this->connectedServers.insert(pair<int, Socket*>(peerID, connectedSocket));
     pthread_mutex_unlock(&this->connectedServersMutex);
@@ -103,7 +102,6 @@ void Server::addPeerToConnectedServers(int peerID, Socket* connectedSocket){
 
 
 void Server::removePeerFromConnectedServers(int peerID){
-    cout << "removing peer with id: " << peerID << "\n";
     pthread_mutex_lock(&this->connectedServersMutex);
     this->connectedServers.erase(this->connectedServers.find(peerID));
     pthread_mutex_unlock(&this->connectedServersMutex);
@@ -992,11 +990,12 @@ void ServerSocket::connectNewClientOrServer(pthread_t *threadID, Server* server)
 
 
     // ELSE (a client is connecting):
-    if (!server->backupMode)
-        newConnectionSocket->sendPacket(Packet(ALREADY_PRIMARY, ""));
-    else {
+    if (server->backupMode){
         newConnectionSocket->sendPacket(Packet(MESSAGE_PKT, server->primarySeverIP.c_str()));
         newConnectionSocket->sendPacket(Packet(MESSAGE_PKT, std::to_string(server->primarySeverPort).c_str()));
+    }
+    else {
+        newConnectionSocket->sendPacket(Packet(ALREADY_PRIMARY, ""));
     }
 
     
@@ -1005,7 +1004,7 @@ void ServerSocket::connectNewClientOrServer(pthread_t *threadID, Server* server)
     Packet *userPacket = newConnectionSocket->readPacket();
 
     if (userPacket == NULL){
-        std::cout << "Unable to read user information. Closing connection." << std::endl;
+        std::cout << "Unable to read user information. Closing connection.\n";
         return;     // destructor automatically closes the socket
     } else 
         user = userPacket->getPayload();
@@ -1013,6 +1012,7 @@ void ServerSocket::connectNewClientOrServer(pthread_t *threadID, Server* server)
     if (userPacket->getType() == USER_INFO_PKT){
         client_address.ipv4 = inet_ntoa(cli_addr.sin_addr);
         client_address.port = ntohs(cli_addr.sin_port);
+
         // mutex
         // server->save_sessions_current_state();
         bool sessionAvailable = server->try_to_start_session(user, client_address);
@@ -1045,7 +1045,12 @@ void ServerSocket::connectNewClientOrServer(pthread_t *threadID, Server* server)
             newConnectionSocket->sendPacket(sessionResultPkt);
         }
     }
-    
+
+    else {// User was already connected, doesn't need to start session again
+        Packet *clientOriginalPort = newConnectionSocket->readPacket();
+        client_address.ipv4 = inet_ntoa(cli_addr.sin_addr);
+        client_address.port = atoi(clientOriginalPort->getPayload());
+    }
     // Build args
     communiction_handler_args *args = (communiction_handler_args *) calloc(1, sizeof(communiction_handler_args));
     args->client_address = client_address;

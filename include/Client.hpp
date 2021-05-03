@@ -13,6 +13,7 @@ class ClientSocket : public Socket {
 	public:
 		bool connectToServer();
 		bool connectToServer(const char* serverAddress, int serverPort);
+        int getClientPort();
 };
 
 
