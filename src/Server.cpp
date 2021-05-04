@@ -859,12 +859,12 @@ void *Server::electionTimeoutHandler(void *handlerArgs){
             sleep(ELECTION_TIMEOUT);
             if(!server->gotAnsweredInElection){
                 cout << "Didn't receive any ANSWER packets before timeout. Autoelecting as primary server...\n\n";
-                server->setAsPrimaryServer();
                 pthread_mutex_lock(&server->electionMutex);
+                server->setAsPrimaryServer();
                 server->electionStarted = false;
                 server->gotAnsweredInElection = false;
-                pthread_mutex_unlock(&server->electionMutex);
                 server->sendPacketToAllServersInTheGroup(Packet(COORDINATOR, myAddressString.c_str()));
+                pthread_mutex_unlock(&server->electionMutex);
             }
         }
         pthread_mutex_unlock(&server->electionMutex);
@@ -1050,6 +1050,7 @@ void ServerSocket::connectNewClientOrServer(pthread_t *threadID, Server* server)
     } else 
         user = userPacket->getPayload();
     
+
     if (userPacket->getType() == USER_INFO_PKT){
         client_address.ipv4 = inet_ntoa(cli_addr.sin_addr);
         client_address.port = ntohs(cli_addr.sin_port);
