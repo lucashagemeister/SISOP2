@@ -81,3 +81,11 @@ int Socket::sendPacket(Packet pkt, int socketfd){
     return n;
 }
 
+
+void Socket::reopenSocket(){
+    close(this->socketfd);
+    if ((this->socketfd = socket(AF_INET, SOCK_STREAM, 0)) <= 0) {
+        std::cout << "ERROR reopening socket\n" << std::endl;
+        exit(1);
+    }
+}

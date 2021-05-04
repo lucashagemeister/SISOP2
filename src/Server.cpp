@@ -864,6 +864,7 @@ void *Server::electionTimeoutHandler(void *handlerArgs){
                 server->electionStarted = false;
                 server->gotAnsweredInElection = false;
                 pthread_mutex_unlock(&server->electionMutex);
+                server->sendPacketToAllServersInTheGroup(Packet(COORDINATOR, myAddressString.c_str()));
             }
         }
         pthread_mutex_unlock(&server->electionMutex);
@@ -927,6 +928,8 @@ void *Server::groupReadMessagesHandler(void *handlerArgs){
             case COORDINATOR:
                 cout << "New Primary server: " << peerID << "\n";
                 server->primarySeverID = peerID;
+                ipPort = server->getIpPortFromAddressString(receivedPacket->getPayload());
+                server->updatePrimaryServerInfo(ipPort.first, ipPort.second);
                 pthread_mutex_lock(&server->electionMutex);
                 server->electionStarted = false;
                 pthread_mutex_unlock(&server->electionMutex);
@@ -1018,9 +1021,19 @@ void ServerSocket::connectNewClientOrServer(pthread_t *threadID, Server* server)
 
 
     // ELSE (a client is connecting):
+    // waits election finishes
+    pthread_mutex_lock(&server->electionMutex);
+    while (server->electionStarted){
+        pthread_mutex_unlock(&server->electionMutex);
+        pthread_mutex_lock(&server->electionMutex);
+    }
+    pthread_mutex_unlock(&server->electionMutex);
+
+    // Sends primary server information
     if (server->backupMode){
         newConnectionSocket->sendPacket(Packet(MESSAGE_PKT, server->primarySeverIP.c_str()));
         newConnectionSocket->sendPacket(Packet(MESSAGE_PKT, std::to_string(server->primarySeverPort).c_str()));
+        return;
     }
     else {
         newConnectionSocket->sendPacket(Packet(ALREADY_PRIMARY, ""));
