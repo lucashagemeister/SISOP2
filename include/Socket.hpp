@@ -25,7 +25,7 @@ typedef struct address {
     bool operator <(const address& other) const {
 		return port < other.port;
 	}
-    
+	
 } host_address;
 
 
@@ -42,6 +42,7 @@ class Socket
 		static Packet* readPacket(int socketfd);
         int sendPacket(Packet packet);
 		int sendPacket(Packet pkt, int socketfd);
+		void reopenSocket();
 		
 		Socket();
 		Socket(int socketfd);

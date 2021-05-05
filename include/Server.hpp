@@ -79,6 +79,8 @@ public:
     map<int, Socket*> connectedServers;         // <id, connected socket object>
     map<string, int> possibleServerAddresses;   // <Ip address, port>
 
+    pthread_mutex_t electionMutex;
+
     bool try_to_start_session(string user, host_address address);
     void follow_user(string user, string user_to_follow);
     void create_notification(string user, string body, time_t timestamp);
@@ -125,7 +127,6 @@ public:
     
 private: 
     pthread_mutex_t connectedServersMutex;
-    pthread_mutex_t electionMutex;
 
 
     pthread_cond_t 	cond_notification_empty, cond_notification_full;

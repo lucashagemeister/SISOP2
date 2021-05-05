@@ -65,8 +65,7 @@ void Client::connectToPrimaryServer(bool reestablishingConnection){
 
     if(reestablishingConnection){
         close(this->socket.getSocketfd());
-        this->socket = *(new ClientSocket());
-        sleep(4);
+        this->socket.reopenSocket();
     }
     else 
         cout << "Trying to connect to server...\n\n";
@@ -110,11 +109,7 @@ void Client::connectToPrimaryServer(bool reestablishingConnection){
     primaryServerPort = this->socket.readPacket();
     serverPort = atoi(primaryServerPort->getPayload());
     
-    // Closes connection and reopen socket to connect to the primary server
-    close(this->socket.getSocketfd());
-    this->socket = *(new ClientSocket());
-
-
+    this->socket.reopenSocket();
     if (!this->socket.connectToServer(serverIP.c_str(), serverPort)){
         if(reestablishingConnection)
             cout << "ERROR lost connection to server!\n";
@@ -122,6 +117,7 @@ void Client::connectToPrimaryServer(bool reestablishingConnection){
             cout << "ERROR while connecting to primary server!\n";
         exit(1); 
     }
+    this->socket.sendPacket(Packet(CLIENT_CONNECTING, ""));
 }
 
 
