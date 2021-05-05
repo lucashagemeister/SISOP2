@@ -12,8 +12,6 @@ Server::Server(map<string, int> possibleServerAddresses)
 
     this->notification_id_counter = 0;
 
-    follow_mutex = PTHREAD_MUTEX_INITIALIZER;
-    follower_count_mutex = PTHREAD_MUTEX_INITIALIZER;
     connectedServersMutex = PTHREAD_MUTEX_INITIALIZER;
 
     pthread_cond_init(&cond_notification_empty, NULL);
@@ -32,8 +30,6 @@ Server::Server(host_address address)
 	this->ip = address.ipv4;
 	this->port = address.port;
 
-    follow_mutex = PTHREAD_MUTEX_INITIALIZER;
-    follower_count_mutex = PTHREAD_MUTEX_INITIALIZER;
     connectedServersMutex = PTHREAD_MUTEX_INITIALIZER;
 
     pthread_cond_init(&cond_notification_empty, NULL);
@@ -413,7 +409,7 @@ void Server::read_notifications(host_address addr, vector<notification>* notific
     cout << "\nEND Reading notifications of active session...\n";
     // signal producer
     pthread_cond_signal(&cond_notification_empty);
-    pthread_cond_signal(&cond_notification_full); // waking someone again can improve client consuming flow
+    pthread_cond_signal(&cond_notification_full); // waking someone again can improve client consumption flow
     pthread_mutex_unlock(&seqn_transaction_serializer);
 }
 
@@ -462,7 +458,6 @@ void Server::close_session(string user, host_address address)
     pthread_mutex_unlock(&seqn_transaction_serializer);
 }
 
-
 void Server::follow_user(string user, string user_to_follow)
 {
     pthread_mutex_lock(&seqn_transaction_serializer);
@@ -499,6 +494,7 @@ void Server::follow_user(string user, string user_to_follow)
     pthread_mutex_unlock(&seqn_transaction_serializer);
 }
 
+
 void Server::deepcopy_user_sessions_semaphore(bool save)
 {
     map<string, sem_t> from;
@@ -527,7 +523,6 @@ void Server::deepcopy_user_sessions_semaphore(bool save)
         to->insert({it->first, num_sessions});
     }
 }
-
 void Server::deepcopy_sessions(bool save)
 {
     map< string, list<host_address> > from;
@@ -559,7 +554,6 @@ void Server::deepcopy_sessions(bool save)
         to->insert({it->first, addresses});
     }
 }
-
 void Server::deepcopy_users_unread_notifications(bool save) 
 {
     map< string, list< uint32_t>> from;
@@ -588,7 +582,6 @@ void Server::deepcopy_users_unread_notifications(bool save)
         to->insert({it->first, notifications});
     }
 }
-
 void Server::deepcopy_followers(bool save) // save or retrieve
 {
     map<string, list<string>> from;
@@ -617,7 +610,6 @@ void Server::deepcopy_followers(bool save) // save or retrieve
         to->insert({it->first, notifications});
     }
 }
-
 void Server::deepcopy_active_notifications(bool save)
 {
     vector<notification> from;
@@ -641,7 +633,6 @@ void Server::deepcopy_active_notifications(bool save)
         to->push_back(*it);
     }
 }
-
 void Server::deepcopy_active_users_pending_notifications(bool save)
 {
     map< host_address, priority_queue< uint32_t, vector<uint32_t>, greater<uint32_t>>> from;
@@ -1216,16 +1207,12 @@ void *Server::readCommandsHandler(void *handlerArgs){
             case COMMAND_FOLLOW_PKT:
                 userToFollow = receivedPacket->getPayload();
                 response = "Followed "+userToFollow+"!";
-                // transaction
                 args->server->follow_user(args->user, userToFollow);
-                // transaction
                 args->connectedSocket->sendPacket(Packet(MESSAGE_PKT, response.c_str()));
                 break;
 
             case COMMAND_SEND_PKT:
-                // transaction
                 args->server->create_notification(args->user, receivedPacket->getPayload(), receivedPacket->getTimestamp());
-                // transaction
                 args->connectedSocket->sendPacket(Packet(MESSAGE_PKT, "Notification sent!"));
                 break;
 
@@ -1242,9 +1229,9 @@ void *Server::sendNotificationsHandler(void *handlerArgs)
     Packet notificationPacket;
     int n;
 
-    // transaction
+
     args->server->retrieve_notifications_from_offline_period(args->user, args->client_address);
-    // transaction
+    
     while(1)
     {    
         vector<notification> notifications;

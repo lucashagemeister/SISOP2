@@ -124,8 +124,6 @@ public:
 
     
 private: 
-    pthread_mutex_t follow_mutex;
-    pthread_mutex_t follower_count_mutex;
     pthread_mutex_t connectedServersMutex;
     pthread_mutex_t electionMutex;
 
@@ -149,9 +147,6 @@ private:
     bool send_backup_change(event e);
 
     uint16_t get_current_sequence();
-
-    // transaction management
-	vector<Socket*> replica_sockets;
 
     map<string, sem_t> COPY_user_sessions_semaphore;
     map< string, list< host_address > > COPY_sessions;
