@@ -316,19 +316,24 @@ bool Server::send_backup_change(event e)
     Packet eventPacket = Packet(e.command, e);
     this->sendPacketToAllServersInTheGroup(eventPacket);
 
+    time_t startTime = time(0);
+    double secondsSiceStart;
     // Wait for all backup servers response until timeout
     while(!didAllBackupsRespondedEvent(e.seqn)){
-        // ###########
-        // ADD TIMEOUT TO BREAK (e mandar SNOK pros backups se estourar)
-        // ###########
+        secondsSiceStart = difftime( time(0), startTime);
+        if (secondsSiceStart >= BACKUPS_RESPONSE_TIMEOUT){ // Backups response timed out
+            sendPacketToAllServersInTheGroup(Packet(SNOK, e)); // ### envia aqui o SNOK ou em outra parte do código??
+            return false;  
+        }
+
     }
 
     if (didAllBackupsOkedEvent(e.seqn)) {
         sendPacketToAllServersInTheGroup(Packet(SOK, e));
-        return true;    // é só retornar true aqui além de enviar SOK?
+        return true;    // #### é só retornar true aqui além de enviar SOK?
     }
     else{
-        sendPacketToAllServersInTheGroup(Packet(SNOK, e));
+        sendPacketToAllServersInTheGroup(Packet(SNOK, e));  // ### envia aqui o SNOK ou em outra parte do código??
         return false;  
     }
 }

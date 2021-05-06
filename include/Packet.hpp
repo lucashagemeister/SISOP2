@@ -1,5 +1,4 @@
-#ifndef PACKET_HEADER
-#define PACKET_HEADER
+#pragma once
 
 #include <iostream>
 #include <stdint.h>
@@ -7,6 +6,24 @@
 #include <string>
 #include "defines.hpp"
 
+typedef struct _event {
+
+    _event();
+    _event(uint16_t new_seqn, int new_command, std::string arg_1, std::string arg_2, std::string arg_3, bool new_committed) 
+        : seqn(new_seqn), command(new_command), arg1(arg_1), arg2(arg_2), arg3(arg_3), committed(new_committed) {}
+
+    uint16_t seqn;
+    int command; // can use packet types
+    std::string arg1;
+    std::string arg2;
+    std::string arg3;
+    bool committed;
+
+    bool operator ==(_event other) const {
+		return seqn == other.seqn && committed == other.committed;
+	}
+
+} event;
 
 class Packet {
 
@@ -42,5 +59,3 @@ class Packet {
         void setAuthor(char* author);
 };
 
-
-#endif
