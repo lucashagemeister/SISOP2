@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <stdlib.h>
 #include <stdio.h>
+#include <set>
 #include "Socket.hpp"
 using namespace std;
 
@@ -35,24 +36,6 @@ typedef struct __notification {
 
 } notification;
 
-typedef struct _event {
-
-    _event();
-    _event(uint16_t new_seqn, string new_command, string arg_1, string arg_2, string arg_3, bool new_committed) 
-        : seqn(new_seqn), command(new_command), arg1(arg_1), arg2(arg_2), arg3(arg_3), committed(new_committed) {}
-
-    uint16_t seqn;
-    string command; // can use packet types
-    string arg1;
-    string arg2;
-    string arg3;
-    bool committed;
-
-    bool operator ==(_event other) const {
-		return seqn == other.seqn && committed == other.committed;
-	}
-
-} event;
 
 
 class Server
@@ -73,20 +56,27 @@ public:
     bool electionStarted;
     bool gotAnsweredInElection;
 
+    int serverConfirmation;
+
     vector<event> event_history; 
-
-
+    
     map<int, Socket*> connectedServers;         // <id, connected socket object>
     map<string, int> possibleServerAddresses;   // <Ip address, port>
+
+    map<uint16_t, map<int, bool>> confirmedEvents; // <event seqn, <server id, if committed>
+    pthread_mutex_t confirmedEventsMutex;
 
     pthread_mutex_t electionMutex;
 
     bool try_to_start_session(string user, host_address address);
-    void follow_user(string user, string user_to_follow);
-    void create_notification(string user, string body, time_t timestamp);
+    bool follow_user(string user, string user_to_follow);
+    bool create_notification(string user, string body, time_t timestamp);
     void close_session(string user, host_address address);
     void retrieve_notifications_from_offline_period(string user, host_address addr);
     void read_notifications(host_address addr, vector<notification>* notifications);
+
+    bool didAllBackupsRespondedEvent(uint16_t eventSeqn);
+    bool didAllBackupsOkedEvent(uint16_t eventSeqn);
 
     void updatePrimaryServerInfo(string ip, int listeningPort, int id);
     void updatePrimaryServerInfo(string ip, int listeningPort);

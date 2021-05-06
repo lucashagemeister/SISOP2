@@ -11,6 +11,7 @@ Server::Server(map<string, int> possibleServerAddresses)
     this->possibleServerAddresses = possibleServerAddresses;
 
     this->notification_id_counter = 0;
+    this->serverConfirmation = -1;
 
     follow_mutex = PTHREAD_MUTEX_INITIALIZER;
     follower_count_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -20,7 +21,7 @@ Server::Server(map<string, int> possibleServerAddresses)
     pthread_cond_init(&cond_notification_full, NULL);
     pthread_mutex_init(&connectedServersMutex, NULL);
     pthread_mutex_init(&electionMutex, NULL);
-
+    pthread_mutex_init(&confirmedEventsMutex, NULL);
     pthread_mutex_init(&seqn_transaction_serializer, NULL);
 }
 
@@ -31,6 +32,7 @@ Server::Server(host_address address)
     this->notification_id_counter = 0;
 	this->ip = address.ipv4;
 	this->port = address.port;
+    this->serverConfirmation = -1;
 
     follow_mutex = PTHREAD_MUTEX_INITIALIZER;
     follower_count_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -40,7 +42,7 @@ Server::Server(host_address address)
     pthread_cond_init(&cond_notification_full, NULL);
     pthread_mutex_init(&connectedServersMutex, NULL);
     pthread_mutex_init(&electionMutex, NULL);
-
+    pthread_mutex_init(&confirmedEventsMutex, NULL);
     pthread_mutex_init(&seqn_transaction_serializer, NULL);
 }
 
@@ -122,7 +124,7 @@ bool Server::try_to_start_session(string user, host_address address)
     pthread_mutex_lock(&seqn_transaction_serializer);
     uint16_t seqn = get_current_sequence();
 
-    event session_event = event(seqn, "SESSION", user, address.ipv4, to_string(address.port), false); // int to string: stoi( str )
+    event session_event = event(seqn, OPEN_SESSION, user, address.ipv4, to_string(address.port), false); // int to string: stoi( str )
 
     deepcopy_user_sessions_semaphore(true);
     deepcopy_sessions(true);
@@ -159,12 +161,14 @@ bool Server::try_to_start_session(string user, host_address address)
     print_COPY_users_unread_notifications();
 
     bool committed;
+
     if (backupMode)
     {
         committed = wait_primary_commit(session_event);
     }
     else
     {
+
         committed = send_backup_change(session_event);
     }
 
@@ -207,28 +211,136 @@ bool Server::user_exists(string user)
     return user_sessions_semaphore.find(user) != user_sessions_semaphore.end();
 }
 
+
+bool Server::didAllBackupsRespondedEvent(uint16_t eventSeqn){
+    pthread_mutex_lock(&confirmedEventsMutex);
+    pthread_mutex_lock(&connectedServersMutex);
+    
+    map<int, bool> eventMap;
+
+    // Get the event from the map
+    auto it = this->confirmedEvents.find(eventSeqn);
+    if (it != this->confirmedEvents.end())
+        eventMap = it->second;
+    else{
+        cout << "WARNING! Method didAllBackupsRespondedEvent() called but event is not inside the confirmedEvents map!\n";
+        pthread_mutex_unlock(&connectedServersMutex);
+        pthread_mutex_unlock(&confirmedEventsMutex);
+        return false;
+    }
+
+
+    for (auto &peer : this->connectedServers){
+
+        auto it = eventMap.find(peer.first);
+
+        if (it == eventMap.end())  { // Not found
+            pthread_mutex_unlock(&connectedServersMutex);
+            pthread_mutex_unlock(&confirmedEventsMutex);
+            return false;
+        } 
+    }
+
+    pthread_mutex_unlock(&connectedServersMutex);
+    pthread_mutex_unlock(&confirmedEventsMutex);
+    return true;
+}
+
+
+bool Server::didAllBackupsOkedEvent(uint16_t eventSeqn){
+    pthread_mutex_lock(&confirmedEventsMutex);
+
+    map<int, bool> eventMap;
+
+    // Get the event from the map
+    auto it = this->confirmedEvents.find(eventSeqn);
+    if (it != this->confirmedEvents.end())
+        eventMap = it->second;
+    else{
+        cout << "WARNING! Method didAllBackupsOkedEvent() called but event is not inside the confirmedEvents map!\n";
+        pthread_mutex_unlock(&connectedServersMutex);
+        pthread_mutex_unlock(&confirmedEventsMutex);
+        return false;
+    }
+
+    for (auto &peer : this->connectedServers){
+
+        auto it = eventMap.find(peer.first);
+
+        if (it == eventMap.end())  { // Not found
+            cout << "WARNING! Method didAllBackupsOkedEvent() called but a server haven't responded yet!\n";
+            pthread_mutex_unlock(&connectedServersMutex);
+            pthread_mutex_unlock(&confirmedEventsMutex);
+            return false;
+        } 
+
+        // Else: peer responded something to event
+        if (!it->second){   // Backup didn't oked event, event must be undone
+            pthread_mutex_unlock(&connectedServersMutex);
+            pthread_mutex_unlock(&confirmedEventsMutex);
+            return false;
+        }
+
+    }
+
+    pthread_mutex_unlock(&connectedServersMutex);
+    pthread_mutex_unlock(&confirmedEventsMutex);
+    return true;
+}
+
+
 bool Server::wait_primary_commit(event e)
 {
-    // send ok
-    // wait primary response
-    return true;
+    // Confirm event alteration
+    this->sendPacketToAllServersInTheGroup(Packet(OK, e));
+    // Wait primary response
+    // ###### adicionar timeout aqui também??
+    while(this->serverConfirmation == -1){}
+    int s = this->serverConfirmation;
+    this->serverConfirmation = -1; 
+    
+    if (s)
+        return true;
+    else
+        return false;
 }
 
 bool Server::send_backup_change(event e)
 {
-    // send command to backup servers
-    // wait for all backup servers response
-    return true;
+    // Add event seqn to the map of confirmed events
+    pthread_mutex_lock(&confirmedEventsMutex);
+    confirmedEvents.insert({e.seqn, {}});
+    pthread_mutex_unlock(&confirmedEventsMutex);
+
+    // Send new event to backup servers
+    Packet eventPacket = Packet(e.command, e);
+    this->sendPacketToAllServersInTheGroup(eventPacket);
+
+    // Wait for all backup servers response until timeout
+    while(!didAllBackupsRespondedEvent(e.seqn)){
+        // ###########
+        // ADD TIMEOUT TO BREAK (e mandar SNOK pros backups se estourar)
+        // ###########
+    }
+
+    if (didAllBackupsOkedEvent(e.seqn)) {
+        sendPacketToAllServersInTheGroup(Packet(SOK, e));
+        return true;    // é só retornar true aqui além de enviar SOK?
+    }
+    else{
+        sendPacketToAllServersInTheGroup(Packet(SNOK, e));
+        return false;  
+    }
 }
 
 // call this function when new notification is created
-void Server::create_notification(string user, string body, time_t timestamp)
+bool Server::create_notification(string user, string body, time_t timestamp)
 {
     cout << "\nNew notification!\n";
     pthread_mutex_lock(&seqn_transaction_serializer);
     uint16_t seqn = get_current_sequence();
 
-    event create_notification_event = event(seqn, "CREATE_NOTIFICATION", user, body, to_string(timestamp), false); 
+    event create_notification_event = event(seqn, CREATE_NOTIFICATION, user, body, to_string(timestamp), false); 
 
     deepcopy_users_unread_notifications(true);
     deepcopy_active_notifications(true);
@@ -270,6 +382,8 @@ void Server::create_notification(string user, string body, time_t timestamp)
     event_history.push_back(create_notification_event);
     cout << "\nEND New notification!\n";
     pthread_mutex_unlock(&seqn_transaction_serializer);
+
+    return committed;
 }
 
 // call this function after new notification is created
@@ -315,7 +429,7 @@ void Server::retrieve_notifications_from_offline_period(string user, host_addres
     pthread_mutex_lock(&seqn_transaction_serializer);
     uint16_t seqn = get_current_sequence();
 
-    event read_from_offline_period_event = event(seqn, "READ_OFFLINE", user, addr.ipv4, to_string(addr.port), false); 
+    event read_from_offline_period_event = event(seqn, READ_OFFLINE, user, addr.ipv4, to_string(addr.port), false); 
 
     deepcopy_users_unread_notifications(true);
     deepcopy_active_users_pending_notifications(true);
@@ -367,7 +481,7 @@ void Server::read_notifications(host_address addr, vector<notification>* notific
 
     cout << "Assembling notifications...\n";
     uint16_t seqn = get_current_sequence();
-    event read_notification_event = event(seqn, "READ_NOTIFICATIONS", addr.ipv4, to_string(addr.port), "", false);
+    event read_notification_event = event(seqn, READ_NOTIFICATIONS, addr.ipv4, to_string(addr.port), "", false);
 
     deepcopy_active_users_pending_notifications(true);
 
@@ -423,7 +537,7 @@ void Server::close_session(string user, host_address address)
     pthread_mutex_lock(&seqn_transaction_serializer);
     uint16_t seqn = get_current_sequence();
 
-    event close_session_event = event(seqn, "CLOSE_SESSION", user, address.ipv4, to_string(address.port), false); // int to string: stoi( str )
+    event close_session_event = event(seqn, CLOSE_SESSION, user, address.ipv4, to_string(address.port), false); // int to string: stoi( str )
 
     deepcopy_active_users_pending_notifications(true);
     deepcopy_sessions(true);
@@ -463,12 +577,12 @@ void Server::close_session(string user, host_address address)
 }
 
 
-void Server::follow_user(string user, string user_to_follow)
+bool Server::follow_user(string user, string user_to_follow)
 {
     pthread_mutex_lock(&seqn_transaction_serializer);
     uint16_t seqn = get_current_sequence();
 
-    event follow_event = event(seqn, "FOLLOW", user, user_to_follow, "", false);
+    event follow_event = event(seqn, FOLLOW, user, user_to_follow, "", false);
 
     deepcopy_followers(true);
 
@@ -497,6 +611,8 @@ void Server::follow_user(string user, string user_to_follow)
     event_history.push_back(follow_event);
 
     pthread_mutex_unlock(&seqn_transaction_serializer);
+
+    return committed;
 }
 
 void Server::deepcopy_user_sessions_semaphore(bool save)
@@ -883,6 +999,8 @@ void *Server::groupReadMessagesHandler(void *handlerArgs){
     string primaryServerAddress;
     string receivedPayload;
     pair<string, int> ipPort;
+    host_address addrServ;
+
     while(1){
         Packet* receivedPacket = connectedSocket->readPacket();
         
@@ -890,6 +1008,7 @@ void *Server::groupReadMessagesHandler(void *handlerArgs){
             server->removePeerFromConnectedServers(peerID);
 
             if (peerID == server->primarySeverID){
+                server->serverConfirmation = 0;
                 cout << "Lost connection with primary server, initializing election... \n";
                 pthread_mutex_lock(&server->electionMutex);
                 server->electionStarted = true;
@@ -914,6 +1033,7 @@ void *Server::groupReadMessagesHandler(void *handlerArgs){
                 break;
             
             case ELECTION:
+                server->serverConfirmation = 0;
                 cout << "Received ELECTION packet...\n";
                 connectedSocket->sendPacket(Packet(ANSWER, ""));
                 break;
@@ -933,12 +1053,60 @@ void *Server::groupReadMessagesHandler(void *handlerArgs){
                 pthread_mutex_lock(&server->electionMutex);
                 server->electionStarted = false;
                 pthread_mutex_unlock(&server->electionMutex);
+                break;
+
+            // backup fez alteração
+            case OK:
+                // alimenta aquela estrutura 
+                // send_
+                break;
+
+            // All backups confirmed the event modification in server state
+            case SOK:
+                server->serverConfirmation = 1;
+                break;
+
+            // At least one backup didn't oked the event modification, need to revert it
+            case SNOK:
+                server->serverConfirmation = 0;
+                break;
+
+            case OPEN_SESSION:
+                addrServ.ipv4 = receivedPacket->e.arg2;
+                addrServ.port = atoi(receivedPacket->e.arg3.c_str());
+                server->try_to_start_session(receivedPacket->e.arg1, addrServ);
+                break;
 
 
+            case CLOSE_SESSION:
+                addrServ.ipv4 = receivedPacket->e.arg2;
+                addrServ.port = atoi(receivedPacket->e.arg3.c_str());
+                server->close_session(receivedPacket->e.arg1, addrServ);
+                break;
 
-            // ########################################################################
-            // Implement behavior for different kind of server-server messages arriving
-            // ########################################################################
+
+            case FOLLOW:
+                server->follow_user(receivedPacket->e.arg1, receivedPacket->e.arg2);
+                break;
+
+            case CREATE_NOTIFICATION:
+                server->create_notification(receivedPacket->e.arg1, 
+                                receivedPacket->e.arg2, atoi(receivedPacket->e.arg3.c_str()));
+                break;
+            
+            case READ_NOTIFICATIONS:{
+                addrServ.ipv4 = receivedPacket->e.arg1;
+                addrServ.port = atoi(receivedPacket->e.arg2.c_str());
+                vector<notification> n;
+                server->read_notifications(addrServ, &n);
+                break;
+            }
+            
+            case READ_OFFLINE:
+                addrServ.ipv4 = receivedPacket->e.arg2;
+                addrServ.port = atoi(receivedPacket->e.arg3.c_str());
+                server->retrieve_notifications_from_offline_period(receivedPacket->e.arg1, addrServ);
+                break;
 
             default:
                 break;
@@ -1055,28 +1223,8 @@ void ServerSocket::connectNewClientOrServer(pthread_t *threadID, Server* server)
         client_address.ipv4 = inet_ntoa(cli_addr.sin_addr);
         client_address.port = ntohs(cli_addr.sin_port);
 
-        // mutex
-        // server->save_sessions_current_state();
         bool sessionAvailable = server->try_to_start_session(user, client_address);
-        /* 
-        error = false
-        if sessionAvailable: 
-            for backup in backups:
-                send session created
-                wait response 
-                if session started: 
-                    next
-                else:
-                    abort
-                    sessions state = previous state
-                    error = true
-                    for confirmed_backup in confirmed_backups:
-                        abort/uncommit changes
-                    break
-        }
-        mutex */
 
-    
         Packet sessionResultPkt;
         if (!sessionAvailable){
             sessionResultPkt = Packet(SESSION_OPEN_FAILED, "Unable to connect to server: no sessions available.");
@@ -1230,17 +1378,17 @@ void *Server::readCommandsHandler(void *handlerArgs){
             case COMMAND_FOLLOW_PKT:
                 userToFollow = receivedPacket->getPayload();
                 response = "Followed "+userToFollow+"!";
-                // transaction
-                args->server->follow_user(args->user, userToFollow);
-                // transaction
-                args->connectedSocket->sendPacket(Packet(MESSAGE_PKT, response.c_str()));
+                if(args->server->follow_user(args->user, userToFollow))
+                    args->connectedSocket->sendPacket(Packet(MESSAGE_PKT, response.c_str()));
+                else 
+                    args->connectedSocket->sendPacket(Packet(MESSAGE_PKT, "Follow failed, try again."));
                 break;
 
             case COMMAND_SEND_PKT:
-                // transaction
-                args->server->create_notification(args->user, receivedPacket->getPayload(), receivedPacket->getTimestamp());
-                // transaction
-                args->connectedSocket->sendPacket(Packet(MESSAGE_PKT, "Notification sent!"));
+                if(args->server->create_notification(args->user, receivedPacket->getPayload(), receivedPacket->getTimestamp()))
+                    args->connectedSocket->sendPacket(Packet(MESSAGE_PKT, "Notification sent!"));
+                else
+                    args->connectedSocket->sendPacket(Packet(MESSAGE_PKT, "Send failed, try again."));
                 break;
 
             default:

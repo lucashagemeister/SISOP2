@@ -1,4 +1,5 @@
 #include <vector>
+#include <string>
 
 #ifndef PACKET_TYPES
 #define PACKET_TYPES
@@ -18,6 +19,18 @@ enum{
     SERVER_PEER_CONNECTING,     // Used to inform that the established connection is server-server
     CLIENT_CONNECTING,          //  Used to inform that the established connection is client-server
     
+    // Event packets
+    CREATE_NOTIFICATION,
+    READ_OFFLINE,
+    READ_NOTIFICATIONS,
+    CLOSE_SESSION,
+    OPEN_SESSION,
+    FOLLOW,
+    
+    OK,     // Backup confirmed event modification
+    SOK,    // Server confirmed that all backups confirmed event modification
+    SNOK,   // Server sayng that at least one backup did not confirm the event 
+
     // For the bully election algorithm
     ELECTION,
     ANSWER,
@@ -86,3 +99,23 @@ enum{
     PORT3           // Backup 3
 };
 #endif
+
+
+typedef struct _event {
+
+    _event();
+    _event(uint16_t new_seqn, int new_command, string arg_1, string arg_2, string arg_3, bool new_committed) 
+        : seqn(new_seqn), command(new_command), arg1(arg_1), arg2(arg_2), arg3(arg_3), committed(new_committed) {}
+
+    uint16_t seqn;
+    int command; // can use packet types
+    string arg1;
+    string arg2;
+    string arg3;
+    bool committed;
+
+    bool operator ==(_event other) const {
+		return seqn == other.seqn && committed == other.committed;
+	}
+
+} event;
