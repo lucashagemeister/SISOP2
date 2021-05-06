@@ -1,5 +1,4 @@
-#ifndef PACKET_HEADER
-#define PACKET_HEADER
+#pragma once
 
 #include <iostream>
 #include <stdint.h>
@@ -7,6 +6,32 @@
 #include <string>
 #include "defines.hpp"
 
+
+typedef struct _event 
+{
+    uint16_t seqn;
+    int command; // packet types
+    std::string arg1;
+    std::string arg2;
+    std::string arg3;
+    bool committed;
+
+    bool operator ==(_event other) const {
+		return seqn == other.seqn && committed == other.committed;
+	}
+/*        
+    _event& operator=(const _event& e) {
+        seqn = e.seqn;
+        command = e.command;
+        arg1 = e.arg1;
+        arg2 = e.arg2;
+        arg3 = e.arg3;
+        bool committed = e.committed;
+        
+        return *this;
+    }
+*/
+} event;
 
 class Packet {
 
@@ -19,10 +44,13 @@ class Packet {
         char payload[MAX_PAYLOAD_LENGTH];      // Content of the packet
 
 	public:
+        event e;
+        
         Packet();
         Packet(uint16_t type, char const *payload);   // Get the timestamp when initializing the object
         Packet(uint16_t type, time_t timestamp, char const *payload);   
         Packet(uint16_t type, time_t timestamp, char const *payload, char const *author); // If it's a notification
+        Packet(uint16_t type, event e);
 
 		uint16_t getType();
 		uint16_t getSeqn();
@@ -30,6 +58,7 @@ class Packet {
 		time_t getTimestamp();
         char* getPayload();
         char* getAuthor();
+        
 
         void setType(uint16_t type);
         void setSeqn(uint16_t seqn);
@@ -38,5 +67,3 @@ class Packet {
         void setAuthor(char* author);
 };
 
-
-#endif

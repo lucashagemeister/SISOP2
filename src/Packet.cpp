@@ -16,6 +16,7 @@ Packet::Packet(uint16_t type, char const *payload){
     this->seqn = 0; 
     this->length = payloadLength;
     this->timestamp = time(NULL);
+    this->e = event();
     strcpy(this->payload, payload);
 }
 
@@ -59,6 +60,10 @@ Packet::Packet(uint16_t type, time_t timestamp, char const *payload, char const 
 }
 
 
+Packet::Packet(uint16_t type, event e){
+    this->type = type;
+    this->e = e;
+}
 
 
 uint16_t Packet::getType(){

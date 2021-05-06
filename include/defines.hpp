@@ -1,5 +1,3 @@
-#include <vector>
-
 #ifndef PACKET_TYPES
 #define PACKET_TYPES
 enum{
@@ -18,6 +16,18 @@ enum{
     SERVER_PEER_CONNECTING,     // Used to inform that the established connection is server-server
     CLIENT_CONNECTING,          //  Used to inform that the established connection is client-server
     
+    // Event packets
+    CREATE_NOTIFICATION,
+    READ_OFFLINE,
+    READ_NOTIFICATIONS,
+    CLOSE_SESSION,
+    OPEN_SESSION,
+    FOLLOW,
+    
+    OK,     // Backup confirmed event modification
+    SOK,    // Server confirmed that all backups confirmed event modification
+    SNOK,   // Server sayng that at least one backup did not confirm the event 
+
     // For the bully election algorithm
     ELECTION,
     ANSWER,
@@ -59,6 +69,9 @@ enum{
 #define ELECTION_TIMEOUT 2
 #endif
 
+#ifndef BACKUPS_RESPONSE_TIMEOUT
+#define BACKUPS_RESPONSE_TIMEOUT 2
+#endif
 
 // MUDAR ISSO AQUI QUANDO IMPLEMENTAR O TRECO DO ARQUIVO
 #ifndef SERVER_ADDR1
