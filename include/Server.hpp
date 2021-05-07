@@ -59,8 +59,6 @@ public:
 
     int serverConfirmation;
     bool autocommit;
-
-    vector<event> event_history; 
     
     map<int, Socket*> connectedServers;         // <id, connected socket object>
     map<string, int> possibleServerAddresses;   // <Ip address, port>
@@ -76,6 +74,10 @@ public:
     void close_session(string user, host_address address);
     void retrieve_notifications_from_offline_period(string user, host_address addr);
     void read_notifications(host_address addr, vector<notification>* notifications);
+
+    bool has_processed_event(event e); // backup use
+    void send_commited_events_to_new_backup(Socket* socket); // primary use
+    void send_commited_events_to_new_backup(Socket* socket, uint16_t expected_seqn); // primary use
 
     bool didAllBackupsRespondedEvent(uint16_t eventSeqn);
     bool didAllBackupsOkedEvent(uint16_t eventSeqn);
@@ -126,6 +128,8 @@ private:
     pthread_mutex_t seqn_transaction_serializer;
 
     uint32_t notification_id_counter;
+
+    vector<event> event_history; 
 
     map<string, sem_t> user_sessions_semaphore;
     map< string, list< host_address > > sessions; // {user, [<ip, port>]}

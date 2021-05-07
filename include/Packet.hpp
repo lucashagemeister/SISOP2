@@ -51,6 +51,7 @@ class Packet {
         Packet(uint16_t type, time_t timestamp, char const *payload);   
         Packet(uint16_t type, time_t timestamp, char const *payload, char const *author); // If it's a notification
         Packet(uint16_t type, event e);
+        Packet(uint16_t type, event e, uint16_t length);
 
 		uint16_t getType();
 		uint16_t getSeqn();

@@ -66,6 +66,13 @@ Packet::Packet(uint16_t type, event e){
 }
 
 
+Packet::Packet(uint16_t type, event e, uint16_t length){
+    this->type = type;
+    this->e = e;
+    this->length = length;
+}
+
+
 uint16_t Packet::getType(){
     return this->type;
 }

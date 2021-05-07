@@ -12,6 +12,7 @@ enum{
     CURRENT_PRIMARY,            // Message containing who's the current primary server
     USER_INFO_RECONNECT,        // Client message to inform the user it has a session opened before primary went down
     ASK_PRIMARY,                // Backup server sends message asking who's the primary server (what's its port)
+    INITIALIZE_STATE,           // Backup server sends message to primary send all committed events on the system
     PRIMARY_SERVER_ADDRESS,     // Answer of what's the address for the primary server, payload format: "addr:port", exaple: "127.0.0.1:4000"
     SERVER_PEER_CONNECTING,     // Used to inform that the established connection is server-server
     CLIENT_CONNECTING,          //  Used to inform that the established connection is client-server

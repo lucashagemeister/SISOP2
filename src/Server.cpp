@@ -276,6 +276,50 @@ bool Server::didAllBackupsOkedEvent(uint16_t eventSeqn){
     return true;
 }
 
+bool Server::has_processed_event(event e)
+{
+    return find(event_history.begin(), event_history.end(), e) != event_history.end();
+}
+
+void Server::send_commited_events_to_new_backup(Socket* socket)
+{
+    for(auto it = event_history.begin(); it != event_history.end(); it++)
+    {
+        if(it->committed)
+        {
+            Packet eventPacket = Packet(it->command, *it);
+            socket->sendPacket(eventPacket);
+            cout << "Sent event " << it->seqn << " to new backup server.\n";
+            sleep(0.3);
+        }
+    }
+}
+
+void Server::send_commited_events_to_new_backup(Socket* socket, uint16_t expected_seqn)
+{
+    cout << "expected_seqn: " << expected_seqn;
+    cout << " - history size: " << event_history.size();
+    cout << " - if: " << (event_history.size() <= expected_seqn);
+    cout << "\n\n";
+    if(event_history.size() <= expected_seqn)
+    {
+        auto ev = event_history[expected_seqn - 1];
+        if(ev.committed)
+        {
+            Packet eventPacket = Packet(ev.command, ev, 1);
+            socket->sendPacket(eventPacket);
+            cout << "Sent event " << ev.seqn << " to new backup server.\n";
+        }        
+    }
+    else
+    {
+        auto ev = event_history[0];
+        Packet eventPacket = Packet(ev.command, ev, 0);
+        socket->sendPacket(eventPacket);
+        cout << "Sent event " << ev.seqn << " to new backup server.\n";
+    }
+}
+
 
 bool Server::wait_primary_commit(event e)
 {
@@ -1076,6 +1120,11 @@ void *Server::groupReadMessagesHandler(void *handlerArgs)
                 connectedSocket->sendPacket(Packet(PRIMARY_SERVER_ADDRESS, primaryServerAddress.c_str()));
                 break;
             
+            case INITIALIZE_STATE:
+                cout << "INITIALIZE_STATE received...\n";
+                server->send_commited_events_to_new_backup(connectedSocket, atoi(receivedPacket->getPayload()));
+                break;
+            
             case PRIMARY_SERVER_ADDRESS:
                 ipPort = server->getIpPortFromAddressString(receivedPacket->getPayload());
                 server->updatePrimaryServerInfo(ipPort.first, ipPort.second);
@@ -1131,7 +1180,9 @@ void *Server::groupReadMessagesHandler(void *handlerArgs)
                 break;
 
             case OPEN_SESSION: {
-                cout << "Replicating open session.\n";
+                cout << "Event "<<receivedPacket->e.seqn<<".\n"; 
+                if (server->has_processed_event(receivedPacket->e)) break;
+                cout << "Replicating open session.\n";                
                 server->autocommit = receivedPacket->e.committed;
                 
                 addrServ.ipv4 = receivedPacket->e.arg2;
@@ -1148,6 +1199,8 @@ void *Server::groupReadMessagesHandler(void *handlerArgs)
             }
 
             case CLOSE_SESSION: {
+                cout << "Event "<<receivedPacket->e.seqn<<".\n"; 
+                if (server->has_processed_event(receivedPacket->e)) break;
                 cout << "Replicating close session.\n";
                 server->autocommit = receivedPacket->e.committed;
 
@@ -1165,6 +1218,8 @@ void *Server::groupReadMessagesHandler(void *handlerArgs)
             }
 
             case FOLLOW: {
+                cout << "Event "<<receivedPacket->e.seqn<<".\n"; 
+                if (server->has_processed_event(receivedPacket->e)) break;
                 cout << "Replicating FOLLOW command.\n";
                 server->autocommit = receivedPacket->e.committed;
                 
@@ -1179,6 +1234,8 @@ void *Server::groupReadMessagesHandler(void *handlerArgs)
             }
 
             case CREATE_NOTIFICATION: {
+                cout << "Event "<<receivedPacket->e.seqn<<".\n"; 
+                if (server->has_processed_event(receivedPacket->e)) break;
                 cout << "Replicating SEND command.\n";
                 server->autocommit = receivedPacket->e.committed;
 
@@ -1194,6 +1251,8 @@ void *Server::groupReadMessagesHandler(void *handlerArgs)
             }
             
             case READ_NOTIFICATIONS:{
+                cout << "Event "<<receivedPacket->e.seqn<<".\n"; 
+                if (server->has_processed_event(receivedPacket->e)) break;
                 cout << "Replicating notification read.\n";
                 server->autocommit = receivedPacket->e.committed;
 
@@ -1212,6 +1271,8 @@ void *Server::groupReadMessagesHandler(void *handlerArgs)
             }
             
             case READ_OFFLINE: {
+                cout << "Event "<<receivedPacket->e.seqn<<".\n"; 
+                if (server->has_processed_event(receivedPacket->e)) break;
                 cout << "Replicating read offline notifications.\n";
                 server->autocommit = receivedPacket->e.committed;
 
@@ -1260,6 +1321,101 @@ void Server::sendMessagesForConnectionEstablishment(Socket* connectedSocket, int
         // ############################################
         // Asks primary server for current server state
         // ############################################
+        cout << "\nAsking primary server for current server state.\n\n";
+        bool all_events_received = false;
+        uint16_t expected_seqn = 1;
+        while (!all_events_received)
+        {
+            connectedSocket->sendPacket(Packet(INITIALIZE_STATE, to_string(expected_seqn).c_str()));
+            Packet* received_packet = connectedSocket->readPacket();
+
+            if(received_packet->getLength() == 0)
+            {
+                all_events_received = true;
+            } 
+            else
+            {
+                switch(received_packet->getType())
+                {
+                    case OPEN_SESSION: {
+                        cout << "Event "<<received_packet->e.seqn<<".\n"; 
+                        if (has_processed_event(received_packet->e)) break;              
+                        autocommit = received_packet->e.committed;
+                        
+                        host_address addrServ;
+                        addrServ.ipv4 = received_packet->e.arg2;
+                        addrServ.port = atoi(received_packet->e.arg3);
+                        
+                        try_to_start_session(received_packet->e.arg1, addrServ);
+                        cout << "FINISHED Replicating open session.\n";
+                                        
+                        break;
+                    }
+                    case CLOSE_SESSION: {
+                        cout << "Event "<<received_packet->e.seqn<<".\n"; 
+                        if (has_processed_event(received_packet->e)) break;
+                        autocommit = received_packet->e.committed;
+
+                        host_address addrServ;
+                        addrServ.ipv4 = received_packet->e.arg2;
+                        addrServ.port = atoi(received_packet->e.arg3);
+
+                        close_session(received_packet->e.arg1, addrServ);
+                        
+                        break;
+                    }
+                    case FOLLOW: {
+                        cout << "Event "<<received_packet->e.seqn<<".\n"; 
+                        if (has_processed_event(received_packet->e)) break;
+                        autocommit = received_packet->e.committed;
+                        
+                        follow_user(received_packet->e.arg1, received_packet->e.arg2);
+                        
+                        break;
+                    }
+                    case CREATE_NOTIFICATION: {
+                        cout << "Event "<<received_packet->e.seqn<<".\n"; 
+                        if (has_processed_event(received_packet->e)) break;
+                        autocommit = received_packet->e.committed;
+
+                        create_notification(received_packet->e.arg1, 
+                                        received_packet->e.arg2, atoi(received_packet->e.arg3));
+                        
+                        break;
+                    }
+                    case READ_NOTIFICATIONS:{
+                        cout << "Event "<<received_packet->e.seqn<<".\n"; 
+                        if (has_processed_event(received_packet->e)) break;
+                        autocommit = received_packet->e.committed;
+
+                        host_address addrServ;
+                        addrServ.ipv4 = received_packet->e.arg1;
+                        addrServ.port = atoi(received_packet->e.arg2);
+                        vector<notification> n;
+
+                        read_notifications(addrServ, &n);
+                        
+                        break;
+                    }
+                    case READ_OFFLINE: {
+                        cout << "Event "<<received_packet->e.seqn<<".\n"; 
+                        if (has_processed_event(received_packet->e)) break;
+                        autocommit = received_packet->e.committed;
+
+                        host_address addrServ;
+                        addrServ.ipv4 = received_packet->e.arg2;
+                        addrServ.port = atoi(received_packet->e.arg3);
+
+                        retrieve_notifications_from_offline_period(received_packet->e.arg1, addrServ);
+                        
+                        break;
+                    }
+                    default:
+                        break;
+                }// switch 
+            }// else
+            expected_seqn++;
+        } // while             
     }   
 }
 
