@@ -100,8 +100,10 @@ void Client::connectToPrimaryServer(bool reestablishingConnection){
     Packet *primaryServerIpAddress;
     primaryServerIpAddress = this->socket.readPacket();
     if (primaryServerIpAddress->getType() == ALREADY_PRIMARY)
+    {
+        cout << "Connected to new server at " << serverIP<<":"<<serverPort << "\n\n";
         return;
-    
+    }
     // Else
     serverIP = primaryServerIpAddress->getPayload();
 
@@ -118,6 +120,7 @@ void Client::connectToPrimaryServer(bool reestablishingConnection){
         exit(1); 
     }
     this->socket.sendPacket(Packet(CLIENT_CONNECTING, ""));
+    cout << "Connected to new server at " << serverIP<<":"<<serverPort << "\n\n";
 }
 
 

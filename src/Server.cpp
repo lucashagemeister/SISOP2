@@ -320,7 +320,7 @@ bool Server::send_backup_change(event e)
 
         if (secondsSiceStart >= BACKUPS_RESPONSE_TIMEOUT)  // Backups response timed out
         {
-            cout << "Timeout for backup repllicas response!\n";
+            cout << "Timeout for backup replicas response!\n";
             sendPacketToAllServersInTheGroup(Packet(SNOK, e)); // ### envia aqui o SNOK ou em outra parte do código??
             return false;  
         }
@@ -1058,7 +1058,7 @@ void *Server::groupReadMessagesHandler(void *handlerArgs)
 
             if (peerID == server->primarySeverID){
                 server->serverConfirmation = 0;
-                cout << "Lost connection with primary server, initializing election... \n";
+                cout << "\nLost connection with primary server, initializing election... \n";
                 pthread_mutex_lock(&server->electionMutex);
                 server->electionStarted = true;
                 server->gotAnsweredInElection = false;
@@ -1107,6 +1107,7 @@ void *Server::groupReadMessagesHandler(void *handlerArgs)
             // Backup confirmed alteration
             case OK: {
                 pthread_mutex_lock(&server->confirmedEventsMutex);
+                cout << "Received OK from backup "<<peerID<<", nice!\n";
                 auto it = server->confirmedEvents.find(receivedPacket->e.seqn);
                 if (it == server->confirmedEvents.end()){
                     cout << "WARNING! Backup server oked unexisting event! Ignoring...\n";
@@ -1447,7 +1448,7 @@ void ServerSocket::bindAndListen(Server* server){
         listen(this->getSocketfd(), MAX_TCP_CONNECTIONS);
         std::cout << "Listening on address " << ip << ":" << port << " ...\n"; 
     } else {
-        std::cout << "ERROR on biding!\n";
+        std::cout << "ERROR on binding!\n";
         exit(1);
     }	
 }
