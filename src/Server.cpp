@@ -279,6 +279,8 @@ bool Server::didAllBackupsOkedEvent(uint16_t eventSeqn){
 
 bool Server::wait_primary_commit(event e)
 {
+    if(autocommit) return true;
+    
     cout << "Confirming event alteration to primary replica.\n";
     this->sendPacketToPrimaryServer(Packet(OK, e));
     cout << "Confirmation sent.\n";
@@ -1132,6 +1134,8 @@ void *Server::groupReadMessagesHandler(void *handlerArgs)
 
             case OPEN_SESSION: {
                 cout << "Replicating open session.\n";
+                server->autocommit = receivedPacket->e.committed;
+                
                 addrServ.ipv4 = receivedPacket->e.arg2;
                 addrServ.port = atoi(receivedPacket->e.arg3);
                 
@@ -1147,6 +1151,8 @@ void *Server::groupReadMessagesHandler(void *handlerArgs)
 
             case CLOSE_SESSION: {
                 cout << "Replicating close session.\n";
+                server->autocommit = receivedPacket->e.committed;
+
                 addrServ.ipv4 = receivedPacket->e.arg2;
                 addrServ.port = atoi(receivedPacket->e.arg3);
 
@@ -1162,6 +1168,7 @@ void *Server::groupReadMessagesHandler(void *handlerArgs)
 
             case FOLLOW: {
                 cout << "Replicating FOLLOW command.\n";
+                server->autocommit = receivedPacket->e.committed;
                 
                 thread command_thread ([&]()
                 { 
@@ -1175,6 +1182,7 @@ void *Server::groupReadMessagesHandler(void *handlerArgs)
 
             case CREATE_NOTIFICATION: {
                 cout << "Replicating SEND command.\n";
+                server->autocommit = receivedPacket->e.committed;
 
                 thread command_thread ([&]()
                 { 
@@ -1189,6 +1197,8 @@ void *Server::groupReadMessagesHandler(void *handlerArgs)
             
             case READ_NOTIFICATIONS:{
                 cout << "Replicating notification read.\n";
+                server->autocommit = receivedPacket->e.committed;
+
                 addrServ.ipv4 = receivedPacket->e.arg1;
                 addrServ.port = atoi(receivedPacket->e.arg2);
                 vector<notification> n;
@@ -1205,6 +1215,8 @@ void *Server::groupReadMessagesHandler(void *handlerArgs)
             
             case READ_OFFLINE: {
                 cout << "Replicating read offline notifications.\n";
+                server->autocommit = receivedPacket->e.committed;
+
                 addrServ.ipv4 = receivedPacket->e.arg2;
                 addrServ.port = atoi(receivedPacket->e.arg3);
 
