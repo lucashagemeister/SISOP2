@@ -76,7 +76,6 @@ public:
     void read_notifications(host_address addr, vector<notification>* notifications);
 
     bool has_processed_event(event e); // backup use
-    void send_commited_events_to_new_backup(Socket* socket); // primary use
     void send_commited_events_to_new_backup(Socket* socket, uint16_t expected_seqn); // primary use
     void ask_event_history_to_primary(Socket* connectedSocket);
 

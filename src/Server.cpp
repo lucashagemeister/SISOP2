@@ -281,20 +281,6 @@ bool Server::has_processed_event(event e)
     return find(event_history.begin(), event_history.end(), e) != event_history.end();
 }
 
-void Server::send_commited_events_to_new_backup(Socket* socket)
-{
-    for(auto it = event_history.begin(); it != event_history.end(); it++)
-    {
-        if(it->committed)
-        {
-            Packet eventPacket = Packet(it->command, *it);
-            socket->sendPacket(eventPacket);
-            cout << "Sent event " << it->seqn << " to new backup server.\n";
-            sleep(0.3);
-        }
-    }
-}
-
 void Server::send_commited_events_to_new_backup(Socket* socket, uint16_t expected_seqn)
 {
     if (event_history.empty())
@@ -315,7 +301,16 @@ void Server::send_commited_events_to_new_backup(Socket* socket, uint16_t expecte
             Packet eventPacket = Packet(ev.command, ev, 1);
             socket->sendPacket(eventPacket);
             cout << "Sent event " << ev.seqn << " to new backup server.\n\n";
-        }        
+        }
+        else
+        {
+            Packet msgPacket = Packet(MESSAGE_PKT, "Packet to be ignored.");
+            socket->sendPacket(msgPacket);
+            cout << "Finished - ";
+            cout << msgPacket.getLength();
+            cout << "\n";
+        }
+              
     }
     else
     {
@@ -1427,7 +1422,6 @@ void Server::ask_event_history_to_primary(Socket* connectedSocket)
                 }
 
                 default:
-                    all_events_received = true;
                     break;
             }// switch 
         }// else
