@@ -1094,11 +1094,18 @@ void *Server::groupReadMessagesHandler(void *handlerArgs){
                 pthread_mutex_unlock(&server->electionMutex);
                 break;
 
-            // backup fez alteração
-            case OK:
-                // alimenta aquela estrutura 
-                // send_
+            // Backup confirmed alteration
+            case OK: {
+                pthread_mutex_lock(&server->confirmedEventsMutex);
+                auto it = server->confirmedEvents.find(receivedPacket->e.seqn);
+                if (it == server->confirmedEvents.end()){
+                    cout << "WARNING! Backup server oked unexisting event! Ignoring...\n";
+                } else {
+                    it->second.insert({peerID, true});
+                }
+                pthread_mutex_unlock(&server->confirmedEventsMutex);
                 break;
+            }
 
             // All backups confirmed the event modification in server state
             case SOK:
@@ -1111,16 +1118,15 @@ void *Server::groupReadMessagesHandler(void *handlerArgs){
                 break;
 
             case OPEN_SESSION:
-                cout << "1 recebi um OPEN_SESSION do primary!! \n";
+                cout << "Replicating open session.\n";
                 addrServ.ipv4 = receivedPacket->e.arg2;
-                cout << "2 recebi um OPEN_SESSION do primary!! \n";
                 addrServ.port = atoi(receivedPacket->e.arg3);
-                cout << "3 recebi um OPEN_SESSION do primary!! \n";
                 server->try_to_start_session(receivedPacket->e.arg1, addrServ);
                 break;
 
 
             case CLOSE_SESSION:
+                cout << "Replicating close session.\n";
                 addrServ.ipv4 = receivedPacket->e.arg2;
                 addrServ.port = atoi(receivedPacket->e.arg3);
                 server->close_session(receivedPacket->e.arg1, addrServ);
@@ -1128,15 +1134,18 @@ void *Server::groupReadMessagesHandler(void *handlerArgs){
 
 
             case FOLLOW:
+                cout << "Replicating FOLLOW command.\n";
                 server->follow_user(receivedPacket->e.arg1, receivedPacket->e.arg2);
                 break;
 
             case CREATE_NOTIFICATION:
+                cout << "Replicating SEND command.\n";
                 server->create_notification(receivedPacket->e.arg1, 
                                 receivedPacket->e.arg2, atoi(receivedPacket->e.arg3));
                 break;
             
             case READ_NOTIFICATIONS:{
+                cout << "Replicating notification read.\n";
                 addrServ.ipv4 = receivedPacket->e.arg1;
                 addrServ.port = atoi(receivedPacket->e.arg2);
                 vector<notification> n;
@@ -1145,6 +1154,7 @@ void *Server::groupReadMessagesHandler(void *handlerArgs){
             }
             
             case READ_OFFLINE:
+                cout << "Replicating read offline notifications.\n";
                 addrServ.ipv4 = receivedPacket->e.arg2;
                 addrServ.port = atoi(receivedPacket->e.arg3);
                 server->retrieve_notifications_from_offline_period(receivedPacket->e.arg1, addrServ);
