@@ -137,8 +137,6 @@ bool Server::try_to_start_session(string user, host_address address)
 
     print_sessions();
     print_COPY_sessions();
-    print_users_unread_notifications();
-    print_COPY_users_unread_notifications();
 
     if(!user_exists(user))
     {
@@ -189,11 +187,8 @@ bool Server::try_to_start_session(string user, host_address address)
 
     print_sessions();
     print_COPY_sessions();
-    print_users_unread_notifications();
-    print_COPY_users_unread_notifications();
     print_events();
 
-    cout << "\nEND Trying to start session\n";
     pthread_mutex_unlock(&seqn_transaction_serializer);
     return committed && session_started == 0; 
 }
@@ -224,7 +219,8 @@ bool Server::didAllBackupsRespondedEvent(uint16_t eventSeqn){
     auto it = this->confirmedEvents.find(eventSeqn);
     if (it != this->confirmedEvents.end())
         eventMap = it->second;
-    else{
+    else
+    {
         cout << "WARNING! Method didAllBackupsRespondedEvent() called but event is not inside the confirmedEvents map!\n";
         pthread_mutex_unlock(&connectedServersMutex);
         pthread_mutex_unlock(&confirmedEventsMutex);
@@ -232,11 +228,12 @@ bool Server::didAllBackupsRespondedEvent(uint16_t eventSeqn){
     }
 
 
-    for (auto &peer : this->connectedServers){
-
+    for (auto &peer : this->connectedServers)
+    {
         auto it = eventMap.find(peer.first);
 
-        if (it == eventMap.end())  { // Not found
+        if (it == eventMap.end()) // Not found
+        {
             pthread_mutex_unlock(&connectedServersMutex);
             pthread_mutex_unlock(&confirmedEventsMutex);
             return false;
@@ -293,12 +290,18 @@ bool Server::didAllBackupsOkedEvent(uint16_t eventSeqn){
 
 bool Server::wait_primary_commit(event e)
 {
-    // Confirm event alteration
+    cout << "Confirming event alteration to primary replica.\n";
     this->sendPacketToPrimaryServer(Packet(OK, e));
+    cout << "Confirmation sent.\n";
     // Wait primary response
     // ###### adicionar timeout aqui também??
-    while(this->serverConfirmation == -1){}
-    int s = this->serverConfirmation;
+    //cout << "serverConfirmation: " << serverConfirmation << "\n";
+    while(serverConfirmation == -1)
+    {
+        // busy wait thread change value;
+        sleep(1);
+    }
+    int s = serverConfirmation;
     this->serverConfirmation = -1; 
     
     if (s)
@@ -309,6 +312,7 @@ bool Server::wait_primary_commit(event e)
 
 bool Server::send_backup_change(event e)
 {
+    cout << "Sending event to all backup replicas.\n";
     // Add event seqn to the map of confirmed events
     pthread_mutex_lock(&confirmedEventsMutex);
     confirmedEvents.insert({e.seqn, {}});
@@ -321,9 +325,13 @@ bool Server::send_backup_change(event e)
     time_t startTime = time(0);
     double secondsSiceStart;
     // Wait for all backup servers response until timeout
-    while(!didAllBackupsRespondedEvent(e.seqn)){
+    while(!didAllBackupsRespondedEvent(e.seqn))
+    {
         secondsSiceStart = difftime( time(0), startTime);
-        if (secondsSiceStart >= BACKUPS_RESPONSE_TIMEOUT){ // Backups response timed out
+
+        if (secondsSiceStart >= BACKUPS_RESPONSE_TIMEOUT)  // Backups response timed out
+        {
+            cout << "Timeout for backup repllicas response!\n";
             sendPacketToAllServersInTheGroup(Packet(SNOK, e)); // ### envia aqui o SNOK ou em outra parte do código??
             return false;  
         }
@@ -331,10 +339,12 @@ bool Server::send_backup_change(event e)
     }
 
     if (didAllBackupsOkedEvent(e.seqn)) {
+        cout << "Responding SOK to backups!\n";
         sendPacketToAllServersInTheGroup(Packet(SOK, e));
         return true;    // #### é só retornar true aqui além de enviar SOK?
     }
     else{
+        cout << "Responding SNOK to backups D:\n";
         sendPacketToAllServersInTheGroup(Packet(SNOK, e));  // ### envia aqui o SNOK ou em outra parte do código??
         return false;  
     }
@@ -393,7 +403,6 @@ bool Server::create_notification(string user, string body, time_t timestamp)
 
     create_notification_event.committed = committed;
     event_history.push_back(create_notification_event);
-    cout << "\nEND New notification!\n";
     pthread_mutex_unlock(&seqn_transaction_serializer);
 
     return committed;
@@ -425,7 +434,6 @@ void Server::assign_notification_to_active_sessions(uint32_t notification_id, li
             }
         }
     }
-    cout << "\nEND Assigning new notification to active sessions...\n";
 
 }
 
@@ -479,7 +487,6 @@ void Server::retrieve_notifications_from_offline_period(string user, host_addres
     read_from_offline_period_event.committed = committed;
     event_history.push_back(read_from_offline_period_event);
 
-    cout << "\nEND Getting notifications from offline period to active sessions...\n";
     // signal consumer
     pthread_cond_signal(&cond_notification_full);
     pthread_mutex_unlock(&seqn_transaction_serializer);
@@ -548,8 +555,6 @@ void Server::read_notifications(host_address addr, vector<notification>* notific
     read_notification_event.committed = committed;
     event_history.push_back(read_notification_event);
 
-
-    cout << "\nEND Reading notifications of active session...\n";
     // signal producer
     pthread_cond_signal(&cond_notification_empty);
     pthread_cond_signal(&cond_notification_full); // waking someone again can improve client consumption flow
@@ -1035,8 +1040,8 @@ void *Server::electionTimeoutHandler(void *handlerArgs){
 }
 
 
-void *Server::groupReadMessagesHandler(void *handlerArgs){
-
+void *Server::groupReadMessagesHandler(void *handlerArgs)
+{
     // Unroll arguments
     struct group_communiction_handler_args *args = (struct group_communiction_handler_args *)handlerArgs;
     Server* server = args->server;
@@ -1117,56 +1122,103 @@ void *Server::groupReadMessagesHandler(void *handlerArgs){
 
             // All backups confirmed the event modification in server state
             case SOK:
+                cout << "Received SOK from primary!\n";
                 server->serverConfirmation = 1;
                 break;
 
             // At least one backup didn't oked the event modification, need to revert it
             case SNOK:
+                cout << "Received SNOK from primary :( damn!\n";
                 server->serverConfirmation = 0;
                 break;
 
-            case OPEN_SESSION:
+            case OPEN_SESSION: {
                 cout << "Replicating open session.\n";
                 addrServ.ipv4 = receivedPacket->e.arg2;
                 addrServ.port = atoi(receivedPacket->e.arg3);
-                server->try_to_start_session(receivedPacket->e.arg1, addrServ);
+                
+                thread command_thread ([&]()
+                { 
+                    server->try_to_start_session(receivedPacket->e.arg1, addrServ);
+                    cout << "FINISHED Replicating open session.\n";
+                });
+                command_thread.detach();
+                                
                 break;
+            }
 
-
-            case CLOSE_SESSION:
+            case CLOSE_SESSION: {
                 cout << "Replicating close session.\n";
                 addrServ.ipv4 = receivedPacket->e.arg2;
                 addrServ.port = atoi(receivedPacket->e.arg3);
-                server->close_session(receivedPacket->e.arg1, addrServ);
+
+                thread command_thread ([&]()
+                { 
+                    server->close_session(receivedPacket->e.arg1, addrServ);
+                    cout << "FINISHED Replicating close session.\n";
+                });
+                command_thread.detach();
+
                 break;
+            }
 
-
-            case FOLLOW:
+            case FOLLOW: {
                 cout << "Replicating FOLLOW command.\n";
-                server->follow_user(receivedPacket->e.arg1, receivedPacket->e.arg2);
-                break;
+                
+                thread command_thread ([&]()
+                { 
+                    server->follow_user(receivedPacket->e.arg1, receivedPacket->e.arg2);
+                    cout << "FINISHED Replicating FOLLOW command.\n";
+                });
+                command_thread.detach();
 
-            case CREATE_NOTIFICATION:
-                cout << "Replicating SEND command.\n";
-                server->create_notification(receivedPacket->e.arg1, 
-                                receivedPacket->e.arg2, atoi(receivedPacket->e.arg3));
                 break;
+            }
+
+            case CREATE_NOTIFICATION: {
+                cout << "Replicating SEND command.\n";
+
+                thread command_thread ([&]()
+                { 
+                    server->create_notification(receivedPacket->e.arg1, 
+                                receivedPacket->e.arg2, atoi(receivedPacket->e.arg3));
+                    cout << "FINISHED Replicating SEND command.\n";
+                });
+                command_thread.detach();
+                
+                break;
+            }
             
             case READ_NOTIFICATIONS:{
                 cout << "Replicating notification read.\n";
                 addrServ.ipv4 = receivedPacket->e.arg1;
                 addrServ.port = atoi(receivedPacket->e.arg2);
                 vector<notification> n;
-                server->read_notifications(addrServ, &n);
+
+                thread command_thread ([&]()
+                { 
+                    server->read_notifications(addrServ, &n);
+                    cout << "FINISHED Replicating notification read.\n";
+                });
+                command_thread.detach();
+                
                 break;
             }
             
-            case READ_OFFLINE:
+            case READ_OFFLINE: {
                 cout << "Replicating read offline notifications.\n";
                 addrServ.ipv4 = receivedPacket->e.arg2;
                 addrServ.port = atoi(receivedPacket->e.arg3);
-                server->retrieve_notifications_from_offline_period(receivedPacket->e.arg1, addrServ);
+
+                thread command_thread ([&]()
+                { 
+                    server->retrieve_notifications_from_offline_period(receivedPacket->e.arg1, addrServ);
+                    cout << "FINISHED Replicating read offline notifications.\n";
+                });
+                command_thread.detach();
+                
                 break;
+            }
 
             default:
                 break;
