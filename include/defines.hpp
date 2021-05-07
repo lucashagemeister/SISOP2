@@ -49,6 +49,19 @@ enum{
 #define MAX_NOTIFICATION_LENGTH 128
 #endif
 
+#ifndef MAX_EVENT_ARG1
+#define MAX_EVENT_ARG1 18
+#endif
+
+#ifndef MAX_EVENT_ARG2
+#define MAX_EVENT_ARG2 18
+#endif
+
+#ifndef MAX_EVENT_ARG3
+#define MAX_EVENT_ARG3 18
+#endif
+
+
 #ifndef PKT_HEADER_BUFFER_LENGTH
 #define PKT_HEADER_BUFFER_LENGTH 4     
 #endif

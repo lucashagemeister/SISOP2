@@ -25,7 +25,6 @@ int main(int argc, char **argv) {
 	possibleServerAddresses.insert(pair<string, int>(SERVER_ADDR4, PORT3));
 	// #####################################################################
 
-
   client = new Client(user, possibleServerAddresses);
 
   pthread_create(&threadControl, NULL, Client::controlThread, (void *)client);

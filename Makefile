@@ -28,3 +28,5 @@ client: $(CLIENT_OBJ)
 
 clean:
 	rm -f $(BIN_FOLDER)*.o
+
+all: server client

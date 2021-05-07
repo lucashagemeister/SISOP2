@@ -11,9 +11,9 @@ typedef struct _event
 {
     uint16_t seqn;
     int command; // packet types
-    std::string arg1;
-    std::string arg2;
-    std::string arg3;
+    char arg1[MAX_EVENT_ARG1];
+    char arg2[MAX_EVENT_ARG2];
+    char arg3[MAX_EVENT_ARG3];
     bool committed;
 
     bool operator ==(_event other) const {

@@ -123,9 +123,9 @@ bool Server::try_to_start_session(string user, host_address address)
     event session_event;
     session_event.seqn = seqn;
     session_event.command = OPEN_SESSION;
-    session_event.arg1 = user;
-    session_event.arg2 = address.ipv4;
-    session_event.arg3 = to_string(address.port);
+    strcpy(session_event.arg1, user.c_str());
+    strcpy(session_event.arg2, address.ipv4.c_str());
+    strcpy(session_event.arg3, to_string(address.port).c_str());
     session_event.committed = false; 
 
     deepcopy_user_sessions_semaphore(true);
@@ -316,6 +316,8 @@ bool Server::send_backup_change(event e)
 
     // Send new event to backup servers
     Packet eventPacket = Packet(e.command, e);
+    cout << "testando se o event que cheogu aqui ainda ta intacto. arg1:  "
+    << e.arg1 << " | arg2: " << e.arg2 << " \n\n";
     this->sendPacketToAllServersInTheGroup(eventPacket);
 
     time_t startTime = time(0);
@@ -350,9 +352,9 @@ bool Server::create_notification(string user, string body, time_t timestamp)
     event create_notification_event;
     create_notification_event.seqn = seqn;
     create_notification_event.command = CREATE_NOTIFICATION;
-    create_notification_event.arg1 = user;
-    create_notification_event.arg2 = body;
-    create_notification_event.arg3 = to_string(timestamp);
+    strcpy(create_notification_event.arg1, user.c_str());
+    strcpy(create_notification_event.arg2, body.c_str());
+    strcpy(create_notification_event.arg3, to_string(timestamp).c_str());
     create_notification_event.committed = false; 
 
     deepcopy_users_unread_notifications(true);
@@ -445,9 +447,9 @@ void Server::retrieve_notifications_from_offline_period(string user, host_addres
     event read_from_offline_period_event;
     read_from_offline_period_event.seqn = seqn;
     read_from_offline_period_event.command = READ_OFFLINE;
-    read_from_offline_period_event.arg1 = user;
-    read_from_offline_period_event.arg2 = addr.ipv4;
-    read_from_offline_period_event.arg3 = to_string(addr.port);
+    strcpy(read_from_offline_period_event.arg1, user.c_str());
+    strcpy(read_from_offline_period_event.arg2, addr.ipv4.c_str());
+    strcpy(read_from_offline_period_event.arg3, to_string(addr.port).c_str());
     read_from_offline_period_event.committed = false; 
 
     deepcopy_users_unread_notifications(true);
@@ -503,9 +505,9 @@ void Server::read_notifications(host_address addr, vector<notification>* notific
     event read_notification_event;
     read_notification_event.seqn = seqn;
     read_notification_event.command = READ_NOTIFICATIONS;
-    read_notification_event.arg1 = addr.ipv4;
-    read_notification_event.arg2 = to_string(addr.port);
-    read_notification_event.arg3 = "";
+    strcpy(read_notification_event.arg1, addr.ipv4.c_str());
+    strcpy(read_notification_event.arg2, to_string(addr.port).c_str());
+    strcpy(read_notification_event.arg3, "");
     read_notification_event.committed = false; 
 
     deepcopy_active_users_pending_notifications(true);
@@ -565,9 +567,9 @@ void Server::close_session(string user, host_address address)
     event close_session_event;
     close_session_event.seqn = seqn;
     close_session_event.command = CLOSE_SESSION;
-    close_session_event.arg1 = user;
-    close_session_event.arg2 = address.ipv4;
-    close_session_event.arg3 = to_string(address.port);
+    strcpy(close_session_event.arg1, user.c_str());
+    strcpy(close_session_event.arg2, address.ipv4.c_str());
+    strcpy(close_session_event.arg3, to_string(address.port).c_str());
     close_session_event.committed = false; 
 
     deepcopy_active_users_pending_notifications(true);
@@ -615,9 +617,9 @@ bool Server::follow_user(string user, string user_to_follow)
     event follow_event;
     follow_event.seqn = seqn;
     follow_event.command = FOLLOW;
-    follow_event.arg1 = user;
-    follow_event.arg2 = user_to_follow;
-    follow_event.arg3 = "";
+    strcpy(follow_event.arg1, user.c_str());
+    strcpy(follow_event.arg2, user_to_follow.c_str());
+    strcpy(follow_event.arg3, "");
     follow_event.committed = false; 
 
     deepcopy_followers(true);
@@ -975,6 +977,11 @@ void Server::print_COPY_followers()
 
 
 void Server::sendPacketToAllServersInTheGroup(Packet p){
+
+    if (p.e.command == OPEN_SESSION){
+        cout << "testando se o event que cheogu aqui (SEND PACKET TO ALL) ainda ta intacto. arg1:  "
+            << p.e.arg1 << " | arg2: " << p.e.arg2 << " \n\n";
+    }
     for (auto &peer : this->connectedServers){
         peer.second->sendPacket(p);
     }
@@ -1104,15 +1111,18 @@ void *Server::groupReadMessagesHandler(void *handlerArgs){
                 break;
 
             case OPEN_SESSION:
+                cout << "1 recebi um OPEN_SESSION do primary!! \n";
                 addrServ.ipv4 = receivedPacket->e.arg2;
-                addrServ.port = atoi(receivedPacket->e.arg3.c_str());
+                cout << "2 recebi um OPEN_SESSION do primary!! \n";
+                addrServ.port = atoi(receivedPacket->e.arg3);
+                cout << "3 recebi um OPEN_SESSION do primary!! \n";
                 server->try_to_start_session(receivedPacket->e.arg1, addrServ);
                 break;
 
 
             case CLOSE_SESSION:
                 addrServ.ipv4 = receivedPacket->e.arg2;
-                addrServ.port = atoi(receivedPacket->e.arg3.c_str());
+                addrServ.port = atoi(receivedPacket->e.arg3);
                 server->close_session(receivedPacket->e.arg1, addrServ);
                 break;
 
@@ -1123,12 +1133,12 @@ void *Server::groupReadMessagesHandler(void *handlerArgs){
 
             case CREATE_NOTIFICATION:
                 server->create_notification(receivedPacket->e.arg1, 
-                                receivedPacket->e.arg2, atoi(receivedPacket->e.arg3.c_str()));
+                                receivedPacket->e.arg2, atoi(receivedPacket->e.arg3));
                 break;
             
             case READ_NOTIFICATIONS:{
                 addrServ.ipv4 = receivedPacket->e.arg1;
-                addrServ.port = atoi(receivedPacket->e.arg2.c_str());
+                addrServ.port = atoi(receivedPacket->e.arg2);
                 vector<notification> n;
                 server->read_notifications(addrServ, &n);
                 break;
@@ -1136,7 +1146,7 @@ void *Server::groupReadMessagesHandler(void *handlerArgs){
             
             case READ_OFFLINE:
                 addrServ.ipv4 = receivedPacket->e.arg2;
-                addrServ.port = atoi(receivedPacket->e.arg3.c_str());
+                addrServ.port = atoi(receivedPacket->e.arg3);
                 server->retrieve_notifications_from_offline_period(receivedPacket->e.arg1, addrServ);
                 break;
 
