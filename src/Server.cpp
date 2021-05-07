@@ -113,7 +113,6 @@ void Server::setAsPrimaryServer(){
 }
 
 
-// se não tiver um host_address, eu posso fazer e devolver um session_id
 bool Server::try_to_start_session(string user, host_address address)
 {
     cout << "\nTrying to start session\n";
@@ -135,9 +134,6 @@ bool Server::try_to_start_session(string user, host_address address)
     deepcopy_active_notifications(true);
     deepcopy_active_users_pending_notifications(true);
 
-    print_sessions();
-    print_COPY_sessions();
-
     if(!user_exists(user))
     {
         sem_t num_sessions;
@@ -154,11 +150,6 @@ bool Server::try_to_start_session(string user, host_address address)
         COPY_sessions[user].push_back(address);
         COPY_active_users_pending_notifications.insert({address, priority_queue<uint32_t, vector<uint32_t>, greater<uint32_t>>()});
     }
-
-    print_sessions();
-    print_COPY_sessions();
-    print_users_unread_notifications();
-    print_COPY_users_unread_notifications();
 
     bool committed;
 
@@ -186,9 +177,7 @@ bool Server::try_to_start_session(string user, host_address address)
     event_history.push_back(session_event);  
 
     print_sessions();
-    print_COPY_sessions();
     print_events();
-
     pthread_mutex_unlock(&seqn_transaction_serializer);
     return committed && session_started == 0; 
 }
@@ -405,6 +394,8 @@ bool Server::create_notification(string user, string body, time_t timestamp)
     event_history.push_back(create_notification_event);
     pthread_mutex_unlock(&seqn_transaction_serializer);
 
+    print_events();
+    print_users_unread_notifications();
     return committed;
 }
 
@@ -419,7 +410,6 @@ void Server::assign_notification_to_active_sessions(uint32_t notification_id, li
         {
             for(auto address : sessions[user]) 
             {
-                //cout << "assigning " << address.ipv4 <<":"<< address.port << " notification " << notification_id <<"\n\n";
                 COPY_active_users_pending_notifications[address].push(notification_id);
             }
             // when all sessions from same user have notification on its entry, remove @ from list
@@ -446,7 +436,6 @@ bool Server::user_is_active(string user)
 void Server::retrieve_notifications_from_offline_period(string user, host_address addr) 
 {
     cout << "\nGetting notifications from offline period to active sessions...\n";
-    //print_users_unread_notifications();
     pthread_mutex_lock(&seqn_transaction_serializer);
     uint16_t seqn = get_current_sequence();
 
@@ -487,6 +476,9 @@ void Server::retrieve_notifications_from_offline_period(string user, host_addres
     read_from_offline_period_event.committed = committed;
     event_history.push_back(read_from_offline_period_event);
 
+    print_events();
+    print_users_unread_notifications();
+
     // signal consumer
     pthread_cond_signal(&cond_notification_full);
     pthread_mutex_unlock(&seqn_transaction_serializer);
@@ -498,7 +490,6 @@ void Server::read_notifications(host_address addr, vector<notification>* notific
     pthread_mutex_lock(&seqn_transaction_serializer);
     cout << "\nReading notifications of active session...\n";
 
-    cout << "Reading notifications...\n";
     while (active_users_pending_notifications[addr].empty()) { 
         // sleep while user doesn't have notifications to read
         cout << "No notifications for address " << addr.ipv4 <<":"<< addr.port << ". Sleeping...\n";
@@ -554,6 +545,9 @@ void Server::read_notifications(host_address addr, vector<notification>* notific
 
     read_notification_event.committed = committed;
     event_history.push_back(read_notification_event);
+
+    print_events();
+    print_users_unread_notifications();
 
     // signal producer
     pthread_cond_signal(&cond_notification_empty);
@@ -650,6 +644,9 @@ bool Server::follow_user(string user, string user_to_follow)
 
     follow_event.committed = committed;
     event_history.push_back(follow_event);
+
+    print_events();
+    print_followers();
 
     pthread_mutex_unlock(&seqn_transaction_serializer);
 
@@ -1339,7 +1336,7 @@ void ServerSocket::connectNewClientOrServer(pthread_t *threadID, Server* server)
 
         Packet sessionResultPkt;
         if (!sessionAvailable){
-            sessionResultPkt = Packet(SESSION_OPEN_FAILED, "Unable to connect to server: no sessions available.");
+            sessionResultPkt = Packet(SESSION_OPEN_FAILED, "Unable to connect to server: no sessions available or consistency precaution.");
             newConnectionSocket->sendPacket(sessionResultPkt);
             return; // destructor automatically closes the socket
         } else{
