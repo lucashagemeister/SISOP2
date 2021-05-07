@@ -176,8 +176,8 @@ bool Server::try_to_start_session(string user, host_address address)
     session_event.committed = committed;
     event_history.push_back(session_event);  
 
-    print_sessions();
     print_events();
+    
     pthread_mutex_unlock(&seqn_transaction_serializer);
     return committed && session_started == 0; 
 }
@@ -280,7 +280,7 @@ bool Server::didAllBackupsOkedEvent(uint16_t eventSeqn){
 bool Server::wait_primary_commit(event e)
 {
     if(autocommit) return true;
-    
+
     cout << "Confirming event alteration to primary replica.\n";
     this->sendPacketToPrimaryServer(Packet(OK, e));
     cout << "Confirmation sent.\n";
@@ -392,10 +392,10 @@ bool Server::create_notification(string user, string body, time_t timestamp)
 
     create_notification_event.committed = committed;
     event_history.push_back(create_notification_event);
-    pthread_mutex_unlock(&seqn_transaction_serializer);
 
     print_events();
-    print_users_unread_notifications();
+
+    pthread_mutex_unlock(&seqn_transaction_serializer);
     return committed;
 }
 
@@ -477,7 +477,6 @@ void Server::retrieve_notifications_from_offline_period(string user, host_addres
     event_history.push_back(read_from_offline_period_event);
 
     print_events();
-    print_users_unread_notifications();
 
     // signal consumer
     pthread_cond_signal(&cond_notification_full);
@@ -547,7 +546,6 @@ void Server::read_notifications(host_address addr, vector<notification>* notific
     event_history.push_back(read_notification_event);
 
     print_events();
-    print_users_unread_notifications();
 
     // signal producer
     pthread_cond_signal(&cond_notification_empty);
@@ -559,6 +557,7 @@ void Server::read_notifications(host_address addr, vector<notification>* notific
 void Server::close_session(string user, host_address address) 
 {
     pthread_mutex_lock(&seqn_transaction_serializer);
+    cout << "Closing session for user " << user << endl;
     uint16_t seqn = get_current_sequence();
 
     event close_session_event;
@@ -573,7 +572,7 @@ void Server::close_session(string user, host_address address)
     deepcopy_sessions(true);
     deepcopy_user_sessions_semaphore(true);
 
-    list<host_address>::iterator it = find(sessions[user].begin(), sessions[user].end(), address);
+    list<host_address>::iterator it = find(COPY_sessions[user].begin(), COPY_sessions[user].end(), address);
     if(it != COPY_sessions[user].end()) // remove address from sessions map and < (ip, port), notification to send > 
     {
         COPY_sessions[user].erase(it);
@@ -602,6 +601,8 @@ void Server::close_session(string user, host_address address)
 
     close_session_event.committed = committed;
     event_history.push_back(close_session_event);
+
+    print_events();
 
     pthread_mutex_unlock(&seqn_transaction_serializer);
 }
@@ -646,7 +647,6 @@ bool Server::follow_user(string user, string user_to_follow)
     event_history.push_back(follow_event);
 
     print_events();
-    print_followers();
 
     pthread_mutex_unlock(&seqn_transaction_serializer);
 
