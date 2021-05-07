@@ -58,6 +58,7 @@ public:
     bool gotAnsweredInElection;
 
     int serverConfirmation;
+    bool autocommit;
 
     vector<event> event_history; 
     
