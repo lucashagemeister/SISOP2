@@ -83,6 +83,7 @@ public:
     void removeSelfFromPossibleServerAddresses();
     void setAsPrimaryServer();
     void sendPacketToAllServersInTheGroup(Packet p);
+    void sendPacketToPrimaryServer(Packet p);
     void sendElectionPacketForGreaterIds();
     void sendMessagesForConnectionEstablishment(Socket* peerConnectedSocket, int peerID);
 

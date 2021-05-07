@@ -294,7 +294,7 @@ bool Server::didAllBackupsOkedEvent(uint16_t eventSeqn){
 bool Server::wait_primary_commit(event e)
 {
     // Confirm event alteration
-    this->sendPacketToAllServersInTheGroup(Packet(OK, e));
+    this->sendPacketToPrimaryServer(Packet(OK, e));
     // Wait primary response
     // ###### adicionar timeout aqui também??
     while(this->serverConfirmation == -1){}
@@ -316,8 +316,6 @@ bool Server::send_backup_change(event e)
 
     // Send new event to backup servers
     Packet eventPacket = Packet(e.command, e);
-    cout << "testando se o event que cheogu aqui ainda ta intacto. arg1:  "
-    << e.arg1 << " | arg2: " << e.arg2 << " \n\n";
     this->sendPacketToAllServersInTheGroup(eventPacket);
 
     time_t startTime = time(0);
@@ -978,13 +976,23 @@ void Server::print_COPY_followers()
 
 void Server::sendPacketToAllServersInTheGroup(Packet p){
 
-    if (p.e.command == OPEN_SESSION){
-        cout << "testando se o event que cheogu aqui (SEND PACKET TO ALL) ainda ta intacto. arg1:  "
-            << p.e.arg1 << " | arg2: " << p.e.arg2 << " \n\n";
-    }
+    pthread_mutex_lock(&connectedServersMutex);
     for (auto &peer : this->connectedServers){
         peer.second->sendPacket(p);
     }
+    pthread_mutex_unlock(&connectedServersMutex);
+}
+
+void Server::sendPacketToPrimaryServer(Packet p){
+
+    pthread_mutex_lock(&connectedServersMutex);
+    for (auto &peer : this->connectedServers){
+        if (peer.first == this->primarySeverID){
+            peer.second->sendPacket(p);
+            break;
+        }
+    }
+    pthread_mutex_unlock(&connectedServersMutex);
 }
 
 
