@@ -283,8 +283,6 @@ bool Server::wait_primary_commit(event e)
     this->sendPacketToPrimaryServer(Packet(OK, e));
     cout << "Confirmation sent.\n";
     // Wait primary response
-    // ###### adicionar timeout aqui também??
-    //cout << "serverConfirmation: " << serverConfirmation << "\n";
     while(serverConfirmation == -1)
     {
         // busy wait thread change value;
@@ -321,7 +319,7 @@ bool Server::send_backup_change(event e)
         if (secondsSiceStart >= BACKUPS_RESPONSE_TIMEOUT)  // Backups response timed out
         {
             cout << "Timeout for backup replicas response!\n";
-            sendPacketToAllServersInTheGroup(Packet(SNOK, e)); // ### envia aqui o SNOK ou em outra parte do código??
+            sendPacketToAllServersInTheGroup(Packet(SNOK, e));
             return false;  
         }
 
@@ -330,11 +328,11 @@ bool Server::send_backup_change(event e)
     if (didAllBackupsOkedEvent(e.seqn)) {
         cout << "Responding SOK to backups!\n";
         sendPacketToAllServersInTheGroup(Packet(SOK, e));
-        return true;    // #### é só retornar true aqui além de enviar SOK?
+        return true;
     }
     else{
         cout << "Responding SNOK to backups D:\n";
-        sendPacketToAllServersInTheGroup(Packet(SNOK, e));  // ### envia aqui o SNOK ou em outra parte do código??
+        sendPacketToAllServersInTheGroup(Packet(SNOK, e));
         return false;  
     }
 }

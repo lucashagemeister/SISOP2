@@ -8,13 +8,16 @@ int main(int argc, char **argv) {
   pthread_t threadControl;
 
 
-  if (argc < 1) {
-    fprintf(stderr,"ERROR you must an username as argument.\n");
+  if (argc < 2) {
+    fprintf(stderr,"ERROR you must provide the '@username' argument.\n");
     exit(0);
   }
 
   string user = argv[1];
-
+  if (user[0] != '@'){
+    fprintf(stderr,"ERROR you must use an @ symbol before the username.\n");
+    exit(0);
+  }
 
   map<string, int> possibleServerAddresses;
 	// #####################################################################
