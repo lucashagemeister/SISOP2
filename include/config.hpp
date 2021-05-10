@@ -10,4 +10,3 @@ class Config{
     int generateIpsAndGatesLists();
   
 }  
-  
