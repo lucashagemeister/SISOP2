@@ -1,44 +1,27 @@
-#include <iostream>
-#include <fstream>
-#include <vector>
-#include <List>
-using namespace std;
-//using std::cout; using std::cerr;
+#include "../include/config.hpp"
 
+Config::Config(map<string, string> possibleServerAddresses){
+    this->possibleServerAddresses = possibleServerAddresses;
+}
 
-int main()
-{
-	string filename("ipporta.txt");
-	list <string> portas;
-	list <string> ips;
-
+int Config::generateIpsAndGatesLists(){
+	string filename("ipporta.txt"); //é um arquivo externo, que não pertence à classe, não precisa botar no header, né?
 	ifstream input_file(filename);
-
+	
 	if (!input_file.is_open()) {
-		cerr << "Could not open the file - '"
-			<< filename << "'" << endl;
+		cerr << "Could not open the file - '" << filename << "'" << endl;
 		return EXIT_FAILURE;
 	}
 	
-	string a, b;
-	while (input_file >> a >> b)
-	{
-		ips.push_back(a);
-		portas.push_back(b);
+	string a, b; //são só variáveis auxiliares para ler o arquivo, não precisa ir no header, né? Ou é melhor colocar lá?
+	
+	while (input_file >> a >> b){
+		this->possibleServerAddresses.insert(pair<string, string>(a, b));
 	}
 	
-	cout << "Lista dos IPs" << endl;
-	for (const auto& i : ips) {
-		cout << i <<endl;
-	}
-	cout << endl;
-	cout << "Lista das portas" << endl;
-	for (const auto& j : portas) {
-		cout << j <<endl;
-	}
-
-	cout << endl;
 	input_file.close();
 
 	return EXIT_SUCCESS;
 }
+
+
