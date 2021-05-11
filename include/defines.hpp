@@ -33,6 +33,8 @@ enum{
     ELECTION,
     ANSWER,
     COORDINATOR,
+    BULLY,
+    CLIENT_MUST_RECONNECT,
 
 };
 #endif

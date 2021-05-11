@@ -106,10 +106,6 @@ void Server::setAsPrimaryServer(){
     this->backupMode = false;
 
     this->updatePrimaryServerInfo(this->ip, this->port, this->id);
-
-    // ####################################################################################
-    // EFETUAR OUTROS "TRÂMITES" QUE PRECISAR PRA SETAR PASSAR ESSE SERVER COMO O PRIMÁRIO
-    // ####################################################################################
 }
 
 
@@ -1157,6 +1153,14 @@ void *Server::groupReadMessagesHandler(void *handlerArgs)
                 pthread_mutex_unlock(&server->electionMutex);
                 break;
 
+            case BULLY:
+                cout << "New Primary server: " << peerID << "\n";
+                server->primarySeverID = peerID;
+                ipPort = server->getIpPortFromAddressString(receivedPacket->getPayload());                
+                server->updatePrimaryServerInfo(ipPort.first, ipPort.second);
+                server->backupMode = true;
+                break;
+
             // Backup confirmed alteration
             case OK: {
                 pthread_mutex_lock(&server->confirmedEventsMutex);
@@ -1333,10 +1337,19 @@ void Server::ask_event_history_to_primary(Socket* connectedSocket)
         connectedSocket->sendPacket(Packet(INITIALIZE_STATE, to_string(expected_seqn).c_str()));
         Packet* received_packet = connectedSocket->readPacket();
 
-        if(received_packet->getLength() == 0)
+        if(received_packet->getLength() == 0)      // Current server instance has current server primary state
         {
             all_events_received = true;
+
+            if (this->id > this->primarySeverID){
+                cout << "My ID is the highest, bullying the leader out...\n";
+                string myAddressString = this->ip + ":" + to_string(this->port);
+                this->sendPacketToAllServersInTheGroup(Packet(BULLY, myAddressString.c_str()));
+                this->setAsPrimaryServer();
+            }
+            return;
         } 
+
         else
         {
             switch(received_packet->getType())
@@ -1542,7 +1555,8 @@ void ServerSocket::connectToGroupMembers(Server* server){
     struct hostent *serverHost;
     serv_addr.sin_family = AF_INET;
     
-    // Assume server starts in backup mode and only changes it if there already are server instances running
+    // Assumes server starts in backup mode and only changes it if there already are server 
+    // instances running or its id is the greatest among all group members' id
     server->backupMode = true;
 
     bool noConnections = true;
@@ -1559,8 +1573,11 @@ void ServerSocket::connectToGroupMembers(Server* server){
             noConnections = false;
     }
 
-    if (noConnections)
+    if (noConnections){
         server->setAsPrimaryServer();
+        return;
+    }
+    
  }
 
 
@@ -1629,7 +1646,10 @@ void ServerSocket::bindAndListen(Server* server){
 }
 
 
+
 void *Server::communicationHandler(void *handlerArgs){
+
+    struct communiction_handler_args *args = (struct communiction_handler_args *)handlerArgs;
 
     pthread_t readCommandsT;
     pthread_t sendNotificationsT;
@@ -1637,8 +1657,23 @@ void *Server::communicationHandler(void *handlerArgs){
     pthread_create(&readCommandsT, NULL, Server::readCommandsHandler, handlerArgs);
     pthread_create(&sendNotificationsT, NULL, Server::sendNotificationsHandler, handlerArgs);
 
-    pthread_join(readCommandsT, NULL);
-    pthread_join(sendNotificationsT, NULL);
+    while(!(args->server->backupMode)){
+        sleep(0.1);
+    }
+
+    // If server is in backupMode and also has clients connected,
+    // it means it was bullyed: disconect with client and let it   
+    // reconnects with new primary server
+    cout << "PASSOU DO WHILE, VAI DESCONECTAR OS CRIENTE!\n";
+    args->connectedSocket->sendPacket(Packet(CLIENT_MUST_RECONNECT, ""));
+
+
+    pthread_cancel(readCommandsT);  // keeps reading even after socket close, so it must be forced to stop
+    cout << "PASSOU O CANCEL, VAMO PRO JOIN\n";
+    pthread_cancel(readCommandsT);  // keeps reading even after socket close, so it must be forced to stop
+    pthread_mutex_unlock(&(args->server->seqn_transaction_serializer));
+
+    cout << "\n\nAS DUAS THREADS ENCERRARAM A EXECUÇÃO YEEY! \n\n";
 
     return NULL;
 }
@@ -1653,8 +1688,9 @@ void *Server::readCommandsHandler(void *handlerArgs){
     while(1){
         Packet* receivedPacket = args->connectedSocket->readPacket();
         if (receivedPacket == NULL){  // connection closed
-            args->server->close_session(args->user, args->client_address);
-            return NULL;
+            if (!args->server->backupMode) // then it's safe to say the client disconnected
+                args->server->close_session(args->user, args->client_address);
+            return NULL;  // otherwise, server was bullyed: session must remain openned
         }
         cout << receivedPacket->getPayload() << "\n\n";
 
@@ -1693,7 +1729,10 @@ void *Server::sendNotificationsHandler(void *handlerArgs)
     args->server->retrieve_notifications_from_offline_period(args->user, args->client_address);
     
     while(1)
-    {    
+    {   
+        if (args->server->backupMode)
+            return NULL;    
+
         vector<notification> notifications;
 
         args->server->read_notifications(args->client_address, &notifications);
@@ -1704,8 +1743,9 @@ void *Server::sendNotificationsHandler(void *handlerArgs)
             n = args->connectedSocket->sendPacket(notificationPacket);
             if (n<0)
             {
-                args->server->close_session(args->user, args->client_address);
-                return NULL;
+                if (!args->server->backupMode) // then it's safe to say the client disconnected
+                    args->server->close_session(args->user, args->client_address);
+                return NULL;    // otherwise, server was bullyed: session must remain openned
             }
         }
     }

@@ -297,6 +297,12 @@ void *Client::do_threadReceiver(void* arg){
             continue; // next loop to read packet again  
         }
 
+        if (readPacket->getType() == CLIENT_MUST_RECONNECT){
+            cout << "Primary server was bullyied, reconnecting...\n";
+            client->reestablishConnection();
+            continue;
+        }
+
         pthread_mutex_lock(&(client->mutex_print));
             if (readPacket->getType() == NOTIFICATION_PKT){
                 cout << "Tweet from " << readPacket->getAuthor() << " at " << readPacket->getTimestamp() << ":" << endl;

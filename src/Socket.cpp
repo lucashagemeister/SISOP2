@@ -32,7 +32,7 @@ Packet* Socket::readPacket(){
     int n = read(this->socketfd, pkt, sizeof(Packet));
 
     if (n<0){
-        std::cout << "ERROR reading from socket: " << this->socketfd  << std::endl;
+        //std::cout << "ERROR reading from socket: " << this->socketfd  << std::endl;
         return NULL;
     }
     else if(n == 0){
