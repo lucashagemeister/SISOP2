@@ -20,13 +20,17 @@ int main(int argc, char **argv) {
   }
 
   map<string, int> possibleServerAddresses;
-	// #####################################################################
-	// LER ESSAS INFORMAÇÕES DE UM ARQUIVO DE CONFIGURAÇÃO
-	possibleServerAddresses.insert(pair<string, int>(SERVER_ADDR1, PORT));
-	possibleServerAddresses.insert(pair<string, int>(SERVER_ADDR2, PORT1));
-	possibleServerAddresses.insert(pair<string, int>(SERVER_ADDR3, PORT2));
-	possibleServerAddresses.insert(pair<string, int>(SERVER_ADDR4, PORT3));
-	// #####################################################################
+	// INÍCIO DA LEITURA DAS INFORMAÇÕES DE UM ARQUIVO DE CONFIGURAÇÃO
+	string filename("ipporta.txt");
+	ifstream input_file(filename);
+	
+	string a, b;
+	while (input_file >> a >> b){
+		possibleServerAddresses.insert(pair<string, string>(a, b));
+	}
+	
+	input_file.close();
+	// FIM DA LEITURA DAS INFORMAÇÕES DE UM ARQUIVO DE CONFIGURAÇÃ
 
   client = new Client(user, possibleServerAddresses);
 
