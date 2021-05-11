@@ -1664,16 +1664,12 @@ void *Server::communicationHandler(void *handlerArgs){
     // If server is in backupMode and also has clients connected,
     // it means it was bullyed: disconect with client and let it   
     // reconnects with new primary server
-    cout << "PASSOU DO WHILE, VAI DESCONECTAR OS CRIENTE!\n";
     args->connectedSocket->sendPacket(Packet(CLIENT_MUST_RECONNECT, ""));
 
 
     pthread_cancel(readCommandsT);  // keeps reading even after socket close, so it must be forced to stop
-    cout << "PASSOU O CANCEL, VAMO PRO JOIN\n";
     pthread_cancel(readCommandsT);  // keeps reading even after socket close, so it must be forced to stop
     pthread_mutex_unlock(&(args->server->seqn_transaction_serializer));
-
-    cout << "\n\nAS DUAS THREADS ENCERRARAM A EXECUÇÃO YEEY! \n\n";
 
     return NULL;
 }
