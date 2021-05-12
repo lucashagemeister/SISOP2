@@ -1,5 +1,10 @@
 #include "../include/Client.hpp"
 
+inline bool do_file_exists (const std::string& name) {
+    return ( access( name.c_str(), F_OK ) != -1 );
+}
+
+
 int main(int argc, char **argv) {
 
   Client *client = (Client *) calloc(1, sizeof(Client));
@@ -20,17 +25,25 @@ int main(int argc, char **argv) {
   }
 
   map<string, int> possibleServerAddresses;
+
 	// INÍCIO DA LEITURA DAS INFORMAÇÕES DE UM ARQUIVO DE CONFIGURAÇÃO
-	string filename("ipporta.txt");
+  
+	string filename("../ipporta.txt");
 	ifstream input_file(filename);
-	
-	string a, b;
-	while (input_file >> a >> b){
-		possibleServerAddresses.insert(pair<string, string>(a, b));
+
+  if (!do_file_exists(filename)){
+    cout << "ERROR config file not found. You should cd to ./bin/ folder!\n";
+    exit(1);
+  }
+
+	string ip, port;
+	while (input_file >> ip >> port){
+		possibleServerAddresses.insert(pair<string, int>(ip, atoi(port.c_str())));
 	}
 	
 	input_file.close();
 	// FIM DA LEITURA DAS INFORMAÇÕES DE UM ARQUIVO DE CONFIGURAÇÃ
+
 
   client = new Client(user, possibleServerAddresses);
 
