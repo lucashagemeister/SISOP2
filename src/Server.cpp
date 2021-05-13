@@ -1668,7 +1668,7 @@ void *Server::communicationHandler(void *handlerArgs){
 
 
     pthread_cancel(readCommandsT);  // keeps reading even after socket close, so it must be forced to stop
-    pthread_cancel(readCommandsT);  // keeps reading even after socket close, so it must be forced to stop
+    pthread_cancel(sendNotificationsT);  // sleeping waiting for new notifications
     pthread_mutex_unlock(&(args->server->seqn_transaction_serializer));
 
     return NULL;
